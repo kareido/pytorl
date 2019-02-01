@@ -3,3 +3,8 @@ test_playground.ipynb
 debug_playground.ipynb
 visualization.ipynb
 .ipynb_checkpoints
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class

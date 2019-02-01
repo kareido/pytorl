@@ -1,4 +1,7 @@
 test: 123
+bool: False
+bool2: yes
+bool3: No
 a:
     b: str
     c: 4.5
