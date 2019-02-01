@@ -1,0 +1,6 @@
+test: 123
+a:
+    b: str
+    c: 4.5
+    d:
+        e: 'final'
