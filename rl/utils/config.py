@@ -18,7 +18,7 @@ class _DotConfig(dict):
         return value
 
     def __setattr__(self, key, value):
-        raise NotImplementedError('cannot override config entry')
+        raise UserWarning('cannot override config entry')
 
     
 def get_config(filename=None):
