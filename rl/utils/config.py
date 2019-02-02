@@ -2,8 +2,12 @@ import argparse
 import yaml
 
 
-class DotConfig(dict):
+class _DotConfig(dict):
+    """
+    override __getattr__ method in dict class to make config dict dot-accessible
     
+    [!]WARNING: can only be used to get attribution but cannot modefy original config value
+    """ 
     def __getattr__(self, key):
         try:
             value = self[key]
@@ -13,6 +17,8 @@ class DotConfig(dict):
             return DotConfig(value)
         return value
 
+    def __setattr__(self, key, value):
+        raise NotImplementedError('cannot override config entry')
     
 def get_config(filename=None):
     if filename is None:
@@ -28,4 +34,4 @@ def get_config(filename=None):
     with open(_cfg_name, 'r') as _cfg_f:
         _raw_cfg = yaml.load(_cfg_f)
     
-    return DotConfig(_raw_cfg)
+    return _DotConfig(_raw_cfg)
