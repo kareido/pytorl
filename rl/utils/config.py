@@ -14,11 +14,12 @@ class _DotConfig(dict):
         except KeyError:
             return super().__getattr__(key)
         if isinstance(value, dict):
-            return DotConfig(value)
+            return _DotConfig(value)
         return value
 
     def __setattr__(self, key, value):
         raise NotImplementedError('cannot override config entry')
+
     
 def get_config(filename=None):
     if filename is None:
