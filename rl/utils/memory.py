@@ -1,6 +1,7 @@
 import random
 from collections import deque
 
+
 class _ExpReplay:
     def __init__(self, capacity=None, sync=True):
         self.capacity, self.sync = capacity, sync

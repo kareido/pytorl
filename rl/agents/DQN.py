@@ -1,4 +1,6 @@
-from ._Base import BaseAgent
+import torch
 
-class DQNAgent(BaseAgent):
-    pass
+
+class DQNAgent:
+    def __init__(self, config):
+        self.
