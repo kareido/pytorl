@@ -8,3 +8,6 @@ visualization.ipynb
 __pycache__/
 *.py[cod]
 *$py.class
+
+# network state_dict
+*.pth

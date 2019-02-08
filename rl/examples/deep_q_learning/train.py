@@ -1,3 +1,4 @@
+import os
 import random
 import math
 from itertools import count
@@ -21,10 +22,14 @@ BATCH_SIZE = CONFIG.replay.sample_batch
 FRAME_STEP = CONFIG.solver.frame_step
 
 
+def curr_thres(config, num_frames):
+    return config.solver.eps_end + (config.solver.eps_start - config.solver.eps_end) * \
+            math.exp(-1. * num_frames / config.solver.eps_decay)
+
+
 def select_action(config, q, num_frames, num_actions):
     sample = random.random()
-    eps_threshold = config.solver.eps_end + (config.solver.eps_start - config.solver.eps_end) * \
-        math.exp(-1. * num_frames / config.solver.eps_decay)
+    eps_threshold = curr_thres(config, num_frames)
     if sample > eps_threshold and q is not None:
         # t.max(1) will return largest column value of each row.
         # second column on max result is index of where max element was
@@ -79,7 +84,8 @@ def main():
                 transition = (curr_state, action, next_state, reward)
                 memory.push(transition)
             else:
-                print('episode [%s/%s], duration [%s]' % (ep + 1, CONFIG.solver.episodes, f + 1), flush=True)
+                print('episode [%s/%s], duration [%s], total frames [%s], curr threshold [%.5f]' % (
+                        ep + 1, CONFIG.solver.episodes, f + 1, num_frames, curr_thres(CONFIG, num_frames)), flush=True)
                 break
                 
             curr_state = next_state
@@ -111,10 +117,17 @@ def main():
                 param.grad.data.clamp_(-1, 1)
             optimizer.step()
 
-            # Update the target network, copying all weights and biases in DQN
-            if ep % CONFIG.solver.update_freq == 0:
-                target_net.load_state_dict(agent_net.state_dict())
-#             print('total_num_frames: [%s]' % (num_frames), flush=True)
+        # Update the target network, copying all weights and biases in DQN
+        if ep % CONFIG.solver.update_freq == 0:
+            target_net.load_state_dict(agent_net.state_dict())
+            
+        if ep % CONFIG.record.freq == 0:
+            agent_path = os.path.join(CONFIG.record.save_path, 'agent_net.pth')
+            target_path = os.path.join(CONFIG.record.save_path, 'target_net.pth')
+            torch.save(agent_net.state_dict(), agent_path)
+            torch.save(target_net.state_dict(), target_path)
+            print('[latest models saved]')
+#         print('total_num_frames: [%s]' % (num_frames), flush=True)
             
 
 if __name__ == '__main__':
