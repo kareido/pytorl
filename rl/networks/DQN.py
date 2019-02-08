@@ -21,7 +21,7 @@ class Q_Network(nn.Module):
         if input_size is not None and len(input_size) != 3:
             raise ValueError('invalid input_size specified')
         self.input_size, self.num_actions = input_size, num_actions
-        if not backbone:
+        if backbone:
             self.network = backbone
             if replace_fc is not None:
                 if num_actions is None:

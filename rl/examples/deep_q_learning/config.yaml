@@ -2,26 +2,16 @@ algorithm: deep_q_learning
 seed: 1024
 solver:
     env: Breakout-v0
-    gamma: 0.999
-    num_eps: 100 # episodes
-    update_freq: 10
-network:
-    agent:
-        model_name: DQN
-        backbone: False
-        replace_fc: ''
-        pretrain: False
-        load_path: ../checkpoint/agent.pth
-        save_path: ../checkpoint/agent.pth
-    target:
-        model_name: DQN
-        backbone: False
-        replace_fc: ''
-        pretrain: False
-        load_path: ../checkpoint/target.pth
-        save_path: ../checkpoint/target.pth
+    lr: 0.0001
+    gamma: 0.99
+    episodes: 1000
+    frame_step: 1
+    update_freq: 20
+    eps_start: 1.0
+    eps_end: 0.01
+    eps_decay: 50000
 replay:
     capacity: 10000
-    sample_batch: 128 # per gpu
+    sample_batch: 128
     dist_sync: False
     

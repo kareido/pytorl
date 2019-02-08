@@ -25,7 +25,7 @@ def get_config(filename=None):
     if filename is None:
         parser = argparse.ArgumentParser()
         parser.add_argument('--config', '-cfg', type=str, default='config.yaml')
-        _cfg_name = parser.parse_args()
+        _cfg_name = parser.parse_args().config
     else:
         _cfg_name = filename
     

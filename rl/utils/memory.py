@@ -18,7 +18,7 @@ class _ExpReplay:
         raise NotImplementedError
         
     def __len__(self):
-        return len(self)
+        return len(self.memory)
         
 
 class _Non_Sync_Replay(_ExpReplay):
