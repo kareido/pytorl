@@ -1,7 +1,7 @@
 algorithm: deep_q_learning
 seed: 1024
 solver:
-    env: CartPole-v0
+    env: Breakout-v0
     gamma: 0.999
     num_eps: 100 # episodes
     update_freq: 10
