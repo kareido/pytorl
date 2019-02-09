@@ -97,7 +97,8 @@ def main():
 
             if len(memory) < BATCH_SIZE:
 #                 print('total_num_frames: [%s]' % (num_frames), flush=True)
-                print('episode [%s/%s], low memory: [%s/%s]' % (
+                if CONFIG.record.debug:
+                    print('episode [%s/%s], low memory: [%s/%s]' % (
                         ep + 1, CONFIG.solver.episodes,len(memory), BATCH_SIZE), flush=True)
                 continue
 #             if num_frames < 10000:
