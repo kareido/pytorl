@@ -1,5 +1,3 @@
-import sys
-sys.path.append(r'../../')
 import os
 import time
 import random
@@ -109,7 +107,7 @@ def main():
 #             print(len(batch_0), len(batch_1), len(batch_3), flush=True)
             state_batch = torch.cat(batch_0)
             action_batch = torch.cat(batch_1)
-            reward_batch = torch.tensor(batch_3)
+            reward_batch = torch.tensor(batch_3).to(DEVICE)
             state_action_values = agent_net(state_batch).gather(1, action_batch)
 #             next_state_values = torch.zeros(BATCH_SIZE, device=DEVICE)
             next_state_values = target_net(state_batch).max(1)[0].detach()
