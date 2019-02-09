@@ -8,4 +8,4 @@ working environment:
 * python=3.6.5
 * numpy=1.14.3
 * pytorch=1.0.0
-* gym=0.10.11 
+* gym=0.10.11 with atari environments
