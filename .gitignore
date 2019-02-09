@@ -11,3 +11,6 @@ __pycache__/
 
 # network state_dict
 *.pth
+
+# train log
+log.txt

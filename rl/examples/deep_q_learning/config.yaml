@@ -3,16 +3,16 @@ seed: 1024
 solver:
     env: Breakout-v0
     lr: 0.00001
-    gamma: 0.99
+    gamma: 0.999
     episodes: 2000
     frame_step: 1
     update_freq: 20
     eps_start: 1.0
     eps_end: 0.01
-    eps_decay: 20000
+    eps_decay: 150000
 replay:
-    capacity: 1000
-    sample_batch: 32
+    capacity: 10000
+    sample_batch: 128
     dist_sync: False
 record:
     freq: 20

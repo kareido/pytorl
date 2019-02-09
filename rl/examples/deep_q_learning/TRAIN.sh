@@ -1,2 +1,2 @@
 export PYTHONPATH=$PYTHONPATH:../../../
-python train.py
+python train.py | tee log.txt 2>&1

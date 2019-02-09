@@ -1,4 +1,5 @@
 import os
+import time
 import random
 import math
 from itertools import count
@@ -27,14 +28,16 @@ def curr_thres(config, num_frames):
             math.exp(-1. * num_frames / config.solver.eps_decay)
 
 
-def select_action(config, q, num_frames, num_actions):
+def select_action(config, agent_net, curr_state, num_frames, num_actions):
     sample = random.random()
     eps_threshold = curr_thres(config, num_frames)
-    if sample > eps_threshold and q is not None:
+    if sample > eps_threshold and curr_state is not None:
         # t.max(1) will return largest column value of each row.
         # second column on max result is index of where max element was
         # found, so we pick action with the larger expected reward.
-        return q.max(1)[1].view(1, 1)
+        with torch.no_grad():
+            curr_q = agent_net(curr_state)
+            return curr_q.max(1)[1].view(1, 1)
     else:
         return torch.tensor([[random.randrange(num_actions)]], device=DEVICE, dtype=torch.long)
 
@@ -69,14 +72,12 @@ def main():
     num_frames = 0
     for ep in range(CONFIG.solver.episodes):
         ob = env.reset()
-        action = select_action(CONFIG, None, num_frames, num_actions)
+        action = select_action(CONFIG, agent_net, None, num_frames, num_actions)
         num_frames += FRAME_STEP
         for f in count():
             env.render()
             curr_state = k_frames(env, action ,FRAME_STEP)
-            with torch.no_grad():
-                curr_q = agent_net(curr_state)
-            action = select_action(CONFIG, curr_q, num_frames, num_actions)
+            action = select_action(CONFIG, agent_net, curr_state, num_frames, num_actions)
             _, reward, done, _ = env.step(action.item())
             if not done:
                 num_frames += FRAME_STEP
@@ -84,7 +85,8 @@ def main():
                 transition = (curr_state, action, next_state, reward)
                 memory.push(transition)
             else:
-                print('episode [%s/%s], duration [%s], total frames [%s], curr threshold [%.5f]' % (
+                print(time.strftime('[%m-%d-%H:%M:%S]: '
+                       ) + 'episode [%s/%s], duration [%s], total frames [%s], curr threshold [%.5f]' % (
                         ep + 1, CONFIG.solver.episodes, f + 1, num_frames, curr_thres(CONFIG, num_frames)), flush=True)
                 break
                 
@@ -92,7 +94,8 @@ def main():
 
             if len(memory) < BATCH_SIZE:
 #                 print('total_num_frames: [%s]' % (num_frames), flush=True)
-                print('low memory: [%s/%s]' % (len(memory), BATCH_SIZE), flush=True)
+                print('episode [%s/%s], low memory: [%s/%s]' % (
+                        ep + 1, CONFIG.solver.episodes,len(memory), BATCH_SIZE), flush=True)
                 continue
 #             if num_frames < 10000:
 #                 continue
@@ -126,7 +129,7 @@ def main():
             target_path = os.path.join(CONFIG.record.save_path, 'target_net.pth')
             torch.save(agent_net.state_dict(), agent_path)
             torch.save(target_net.state_dict(), target_path)
-            print('[latest models saved]')
+            print('[latest models saved]', flush=True)
 #         print('total_num_frames: [%s]' % (num_frames), flush=True)
             
 
