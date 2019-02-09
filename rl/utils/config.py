@@ -21,10 +21,10 @@ class _DotConfig(dict):
         raise UserWarning('cannot override config entry')
 
     
-def get_config(filename=None):
+def get_config(filename=None, default='config.yaml'):
     if filename is None:
         parser = argparse.ArgumentParser()
-        parser.add_argument('--config', '-cfg', type=str, default='config.yaml')
+        parser.add_argument('--config', '-cfg', type=str, default=default)
         _cfg_name = parser.parse_args().config
     else:
         _cfg_name = filename
