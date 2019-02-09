@@ -16,6 +16,7 @@ replay:
     dist_sync: False
 record:
     freq: 20
-    save_path: ./
+    save_path: ./checkpoint
+    render: False
     
     

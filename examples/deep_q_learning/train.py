@@ -1,3 +1,5 @@
+import sys
+sys.path.append(r'../../')
 import os
 import time
 import random
@@ -13,6 +15,8 @@ import rl.networks as network
 
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print('current device: [%s]' % DEVICE, flush=True)
+
 OBSIZE = T.Compose([T.ToPILImage(),
                 T.Grayscale(1), 
                 T.Resize((84, 84)), 
@@ -75,7 +79,8 @@ def main():
         action = select_action(CONFIG, agent_net, None, num_frames, num_actions)
         num_frames += FRAME_STEP
         for f in count():
-            env.render()
+            if CONFIG.record.render:
+                env.render()
             curr_state = k_frames(env, action ,FRAME_STEP)
             action = select_action(CONFIG, agent_net, curr_state, num_frames, num_actions)
             _, reward, done, _ = env.step(action.item())
@@ -125,6 +130,8 @@ def main():
             target_net.load_state_dict(agent_net.state_dict())
             
         if ep % CONFIG.record.freq == 0:
+            if not os.path.exists(CONFIG.record.save_path):
+                os.makedirs(CONFIG.record.save_path)
             agent_path = os.path.join(CONFIG.record.save_path, 'agent_net.pth')
             target_path = os.path.join(CONFIG.record.save_path, 'target_net.pth')
             torch.save(agent_net.state_dict(), agent_path)
