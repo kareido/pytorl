@@ -1,1 +1,1 @@
-from .DQN import *
+from .DQN import Q_Network

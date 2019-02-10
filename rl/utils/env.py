@@ -35,8 +35,30 @@ class _TensorWrapper(gym.Wrapper):
     def reward(self, reward):
         return torch.tensor(reward, dtype=torch.float32).to(self.device)
 
+    def sample(self):
+        return torch.tensor(self.action_space.sample()).to(self.device)
+    
     
 def get_env(env_name, tsfm, device):
     orig_env = gym.make(env_name)
     wrapped_env = _TensorWrapper(orig_env, tsfm, device)
     return wrapped_env
+
+
+def get_stacked_ob_func(env, stack_num):
+    def stacked_ob_func(action):
+        ret = None
+        for _ in range(stack_num):
+            ob, _, done, _ = env.step(action)
+            if ret is None:
+                ret = ob.clone()
+            else:
+                ret = torch.cat((ret, ob))
+            if done:
+                while ret.shape[0] < stack_num:
+                    ret = torch.cat((ret, ob))
+                break
+        # reform ret as (N, C, H, W)
+        return ret.unsqueeze(0)   
+    
+    return stacked_ob_func

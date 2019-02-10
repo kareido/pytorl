@@ -17,6 +17,9 @@ class _ExpReplay:
     def sample(self, batch_size=1):
         raise NotImplementedError
         
+    def clear(self):
+        self.memory.clear()
+        
     def __len__(self):
         return len(self.memory)
         
@@ -35,7 +38,7 @@ class _Non_Sync_Replay(_ExpReplay):
 class _Sync_Replay(_ExpReplay):
     def __init__(self, **kwargs):
         super(_Sync_Replay, self).__init__(**kwargs)
-        raise NotImplementedError
+        raise NotImplementedError('currently not available')
 
 
         

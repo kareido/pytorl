@@ -53,7 +53,7 @@ class Q_Network(nn.Module):
             self.network(mock)
         except:
             raise ValueError(
-                    'network forward failure, presumably due to invalid input_size')
+                'network forward failure, presumably due to invalid input_size')
 
             
             
@@ -95,3 +95,4 @@ class _Original_DQN(nn.Module):
         x = F.relu(self.fc1(x))
         x = self.fc2(x)
         return x
+

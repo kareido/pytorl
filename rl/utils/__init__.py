@@ -1,4 +1,7 @@
 from .config import get_config
 from .env import get_env
-from .memory import get_exp_replay
-from .fhandler import save_pth, load_pth
+from .env import get_stacked_ob_func
+from .explore import get_thres_func
+from .fhandler import save_pth
+from .fhandler import load_pth
+from .replay import get_exp_replay
