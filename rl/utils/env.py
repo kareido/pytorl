@@ -20,20 +20,28 @@ class _TensorWrapper(gym.Wrapper):
         super(_TensorWrapper, self).__init__(env)
         self.device = device
         self.tsfm = tsfm
+        self.curr_step_count = 0
+        self.total_step_count = 0
     
     def step(self, action):
         observation, reward, done, info = self.env.step(action)
+        self.curr_step_count += 1
+        self.total_step_count += 1
         return self.observation(observation), self.reward(reward), done, info
 
     def reset(self, **kwargs):
+        self.curr_step_count = 0
         observation = self.env.reset(**kwargs)
         return self.observation(observation)
 
-    def observation(self, observation):
-        return self.tsfm(observation).to(self.device)
+    def observation(self, observation=None):
+        if observation is None:
+            observation = self.env.render(mode='rgb_array')
+        ob_tensor = torch.tensor(observation, device=self.device)
+        return self.tsfm(ob_tensor)
     
     def reward(self, reward):
-        return torch.tensor(reward, dtype=torch.float32).to(self.device)
+        return torch.tensor(reward).to(self.device)
 
     def sample(self):
         return torch.tensor(self.action_space.sample()).to(self.device)
@@ -47,12 +55,9 @@ def get_env(env_name, tsfm, device):
 
 def get_stacked_ob_func(env, stack_num):
     def stacked_ob_func(action):
-        ret = None
+        ret = env.observation()
         for _ in range(stack_num):
             ob, _, done, _ = env.step(action)
-            if ret is None:
-                ret = ob.clone()
-            else:
                 ret = torch.cat((ret, ob))
             if done:
                 while ret.shape[0] < stack_num:

@@ -28,7 +28,7 @@ def main():
                     T.Grayscale(1), 
                     T.Resize((84, 84)), 
                     T.ToTensor()])
-    env = utils.get_env(CONFIG.solver.env, resize, device)
+    env = utils.get_env(config.solver.env, resize, device)
     num_actions = env.action_space.n
 
     ################################################################
@@ -62,32 +62,30 @@ def main():
     
     ################################################################
     # TRAINING 
-    total_num_frames = 0
     
     for ep in range(num_episodes):
-        ob = env.reset()
+        env.reset()
         thres = get_thres(ep)
         # initial action
         action = env.sample()
-        for f in count():
+        for cycle in count():
             if config.record.render:
                 env.render()
             curr_state = get_input(action)
             action = agent.next_action(thres, env.sample(), curr_input=curr_state)
             _, reward, done, _ = env.step(action.tolist())
-            total_num_frames += frame_step
             if not done:
                 next_state = get_input(action)
                 memory = (curr_state, action, next_state, reward)
                 agent.replay.push(memory)
             else:
-                print(time.strftime('[%y-%m-%d-%H:%M:%S]: '
-                       ) + 'episode [%s/%s], duration [%s], total frames [%s], curr threshold [%.5f]' % (
-                        ep + 1, num_episodes, f + 1, total_num_frames, get_thres(ep)), flush=True)
+                print(time.strftime('[%y-%m-%d-%H:%M:%S]:'), 
+                      'episode [%s/%s], cycle [%s], duration(f) [%s], curr threshold [%.5f]' % (
+                        ep + 1, num_episodes, cycle + 1, env.curr_step_count, get_thres(ep)), flush=True)
                 break
                 
             curr_state = next_state
-
+            
             if len(agent.replay) < batch_size:
 #                 print('total_num_frames: [%s]' % (num_frames), flush=True)
                 if config.record.debug:
