@@ -24,6 +24,10 @@ def save_pth(obj, path, filename=None, obj_name=None):
         obj = obj.state_dict()
     if filename:
         path = os.path.join(path, filename)
+    filedir = os.path.dirname(path)
+    # check path existence
+    if not os.path.exists(filedir):
+        os.makedirs(filedir)
     torch.save(obj, path)
     if obj_name:
         print('[%s] successfully saved at [%s]' % (
@@ -51,7 +55,7 @@ def load_pth(path, filename=None, obj_name=None):
         path = os.path.join(path, filename)
     loaded = torch.load(path)
     if obj_name:
-        print('[%s] successfully saved at [%s]' % (
+        print('[%s] successfully loaded from [%s]' % (
                 obj_name, path), flush=True)
     return loaded
     

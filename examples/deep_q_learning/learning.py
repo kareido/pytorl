@@ -62,11 +62,10 @@ def main():
     
     ################################################################
     # TRAINING 
-    
     for ep in range(num_episodes):
         env.reset()
         thres = get_thres(ep)
-        # initial action
+        # initial random action
         action = env.sample()
         for cycle in count():
             if config.record.render:
@@ -115,12 +114,12 @@ def main():
             optimizer.step()
 
         # Update the target network, copying all weights and biases in DQN
-        if ep % CONFIG.solver.update_freq == 0:
+        if ep % config.solver.update_freq == 0:
             target_net.load_state_dict(agent_net.state_dict())
             
-        if ep % CONFIG.record.freq == 0:
-            if not os.path.exists(CONFIG.record.save_path):
-                os.makedirs(CONFIG.record.save_path)
+        if ep % config.record.freq == 0:
+            if not os.path.exists(config.record.save_path):
+                os.makedirs(config.record.save_path)
             agent_path = os.path.join(CONFIG.record.save_path, 'agent_net.pth')
             target_path = os.path.join(CONFIG.record.save_path, 'target_net.pth')
             torch.save(agent_net.state_dict(), agent_path)
