@@ -40,7 +40,7 @@ def main():
     # get threshold between calculated/random action
     get_thres = utils.get_thres_func(eps_start=config.solver.eps_start, 
                                      eps_end=config.solver.eps_end, 
-                                     total_num=100)
+                                     total_num=300)
 
     ################################################################
     # AGENT  
@@ -113,4 +113,6 @@ def main():
 
 if __name__ == '__main__':
     main()
-    print('DEEP Q-LEARNING DONE', flush=True)
+
+
+
