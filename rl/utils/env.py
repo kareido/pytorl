@@ -19,15 +19,14 @@ example:
                     T.Grayscale(1), 
                     T.Resize((84, 84)), 
                     T.ToTensor()])
-    env = get_env('Breakout-v0', resize, device, render=True)
+    env = get_env('Breakout-v0', resize, render=True)
     agent.set_frame_stack(num_frames=4, stack_init_mode='fire')
     agent.set_single_life_mode(False)    
     
 """
 class _CommonWrapper(gym.Wrapper):
-    def __init__(self, env, tsfm, device, render):
+    def __init__(self, env, tsfm, render):
         super(_CommonWrapper, self).__init__(env)
-        self.device = device
         self.tsfm = tsfm
         self.render = render
 
@@ -41,6 +40,7 @@ class _CommonWrapper(gym.Wrapper):
         self.only_single_life = False
         self.lives = 0
     
+    
     def step(self, action):
         if isinstance(action, torch.Tensor):
             action = action.tolist()
@@ -53,7 +53,7 @@ class _CommonWrapper(gym.Wrapper):
                 self.frame_stack.popleft()
                 
         ob, reward, done, info = self.env.step(action)
-        ob = self.observation(ob)
+        ob = self.transform_ob(ob)
         
         self.curr_step_count += 1
         self.total_step_count += 1
@@ -61,9 +61,7 @@ class _CommonWrapper(gym.Wrapper):
         if self.frame_stack is not None:
             self.frame_stack.append(ob)
             assert len(self.frame_stack) == self.num_frames
-#             print(len(self.frame_stack), self.num_frames)
-            ret_ob = self.observation(self.frame_stack)
-#             print('ret_ob:', ret_ob.shape)
+            ret_ob = self.transform_ob(self.frame_stack)
             
         if self.only_single_life:
             lives = self.env.unwrapped.ale.lives()
@@ -73,9 +71,10 @@ class _CommonWrapper(gym.Wrapper):
         
         if self.render:
             self.env.render()
-        
+            
         return ret_ob.unsqueeze(0), self.reward(reward), done, info
 
+    
     def reset(self, init_mode=None, init_steps=1):
         self.curr_step_count = 0
         self.env.reset()
@@ -84,32 +83,37 @@ class _CommonWrapper(gym.Wrapper):
         if init_mode:
             _init_episode(mode = init_mode, 
                           steps = init_steps)
-        return self.observation()
+        return self.transform_ob()
 
-    def observation(self, ob=None):
+    
+    def transform_ob(self, ob=None):
         if ob is None:
             ob = self.env.render(mode='rgb_array')
         if isinstance(ob, deque):
-            ob_tensor = torch.cat(tuple(ob)).to(self.device)
+            ob_tensor = torch.cat(tuple(ob))
             return ob_tensor
         
         elif isinstance(ob, (list, tuple)):
-            ob_tensor = torch.cat(ob).to(self.device)
+            ob_tensor = torch.cat(ob)
             return ob_tensor
         
-        elif isinstance(ob, (np.ndarray, torch.Tensor)):
-            ob_tensor = torch.tensor(ob, device=self.device)
+        elif isinstance(ob, (np.ndarray,)):
+            ob_tensor = torch.tensor(ob)
+        elif isinstance(ob, (torch.Tensor,)):
+            ob_tensor = ob.to('cpu')
         else:
-            raise ValueError('unsupported observation type')
+            raise ValueError('unsupported transform_ob type')
         return self.tsfm(ob_tensor)
     
     
+    # using clipped reward
     def reward(self, reward):
-        return torch.tensor(reward).to(self.device)
+#         print(np.sign(reward), flush=True)
+        return torch.tensor(np.sign(reward))
 
     
     def sample(self):
-        return torch.tensor(self.action_space.sample()).to(self.device)
+        return torch.tensor(self.action_space.sample())
     
     
     def set_frame_stack(self, num_frames=4, stack_init_mode='random'):
@@ -118,11 +122,12 @@ class _CommonWrapper(gym.Wrapper):
             raise ValueError('invalid num_frames specified')
         if num_frames == 1:
             print('warning: agent only has current '
-                  'observation (num_frames = 1)', flush=True)
+                  'transform_ob (num_frames = 1)', flush=True)
             return
         self.num_frames = num_frames
         self.stack_init_mode = stack_init_mode
         self.frame_stack = deque([])
+        
         
     def _init_episode(self, mode, steps):
         assert mode in {'random', 'noop', 'fire'}
@@ -139,7 +144,7 @@ class _CommonWrapper(gym.Wrapper):
             assert not self.frame_stack, 'stack not empty'
         for _ in range(steps):
             ob, _, done, _ = self.env.step(action)
-            ob = self.observation(ob)
+            ob = self.transform_ob(ob)
             if self.frame_stack is not None:
                 self.frame_stack.append(ob)
                 if done:
@@ -153,6 +158,7 @@ class _CommonWrapper(gym.Wrapper):
                   'during initializing episode', flush=True)
         return done
                 
+        
     def set_single_life_mode(self, status=True):
         self.only_single_life = status
         if status:
@@ -162,8 +168,8 @@ class _CommonWrapper(gym.Wrapper):
     
 
     
-def get_env(env_name, tsfm, device, render=False):
+def get_env(env_name, tsfm, render=False):
     orig_env = gym.make(env_name)
-    wrapped_env = _CommonWrapper(orig_env, tsfm, device, render)
+    wrapped_env = _CommonWrapper(orig_env, tsfm, render)
     return wrapped_env
 

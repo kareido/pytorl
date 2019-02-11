@@ -17,11 +17,15 @@ def get_thres_func(eps_start=1,
         # using exponetial decay rate
         final_prop = (eps_end + eps) / eps_start
         def ret_func(curr_num):
+            if curr_num > total_num:
+                curr_num = total_num
             return eps_start * (final_prop ** (curr_num / total_num))
     else:
         if eps_decay < 0:
             raise ValueError('illegal eps_decay specified (should be >= 0)')
         def ret_func(curr_num):
+            if curr_num > total_num:
+                curr_num = total_num
             return eps_end + (eps_start - eps_end) * math.exp(
                     -curr_num / (eps_decay + eps))
     

@@ -1,6 +1,7 @@
 import os
 import time
 from itertools import count
+from collections import namedtuple
 import torch
 import torch.optim as optim
 import torch.nn.functional as F
@@ -28,9 +29,9 @@ def main():
                     T.Grayscale(1), 
                     T.Resize((84, 84)), 
                     T.ToTensor()])
-    env = utils.get_env(config.solver.env, resize, device, 
+    env = utils.get_env(config.solver.env, resize,
                         render=config.record.render)
-    env.set_frame_stack(num_frames=frame_stack, stack_init_mode='noop')
+    env.set_frame_stack(num_frames=frame_stack, stack_init_mode='fire')
     env.set_single_life_mode()
     num_actions = env.action_space.n
 
@@ -39,7 +40,7 @@ def main():
     # get threshold between calculated/random action
     get_thres = utils.get_thres_func(eps_start=config.solver.eps_start, 
                                      eps_end=config.solver.eps_end, 
-                                     total_num=num_episodes)
+                                     total_num=100)
 
     ################################################################
     # AGENT  
@@ -52,16 +53,25 @@ def main():
     target_net.load_state_dict(q_net.state_dict())
     target_net.eval()
     loss_func = F.smooth_l1_loss
-    optimizer = optim.Adam(q_net.parameters(), lr=config.solver.lr)
-    replay = utils.get_exp_replay(config.replay.capacity, config.replay.dist_sync)
+    optimizer_func = optim.Adam
+    lr = config.solver.lr
+    # named tuple for experience replay
+    memory = namedtuple('SASprimeR', 
+                        ('curr_state', 'action', 'next_state', 'reward'))
+    replay = utils.get_exp_replay(zipper = memory, 
+                                capacity=config.replay.capacity, 
+                                sync=config.replay.dist_sync)
     
     agent = DQN_Agent(device = device, 
                       q_net = q_net, 
                       target_net = target_net, 
-                      loss = loss_func, 
-                      optimizer = optimizer, 
+                      loss_func = loss_func, 
+                      optimizer_func = optimizer_func, 
+                      lr = lr, 
                       replay = replay)
     agent.reset()
+    agent.set_optimize_func(batch_size = batch_size, 
+                            gamma = config.solver.gamma)
     
     ################################################################
     # TRAINING 
@@ -71,51 +81,27 @@ def main():
         # initial random action
         action = env.sample()
         curr_state, _, done, _ = env.step(action)
-#         print('curr_state:', curr_state.shape)
         for cycle in count():
             action = agent.next_action(thres, env.sample(), curr_input=curr_state)
             if not done:
                 next_state, reward, done, _ = env.step(action)
-#                 print('next_state:', next_state.shape)
-                memory = (curr_state, action, next_state, reward)
-                agent.replay.push(memory)
+                exp = agent.replay.zipper(curr_state, action, next_state, reward)
+                agent.replay.push(exp)
             else:
-                print(time.strftime('[%y-%m-%d-%H:%M:%S]:'), 
-                      'episode [%s/%s], cycle [%s], duration(f) [%s], curr threshold [%.5f]' % (
-                        ep + 1, num_episodes, cycle + 1, env.curr_step_count, get_thres(ep)), flush=True)
+                print(time.strftime('[%Y-%m-%d-%H:%M:%S]:'), 
+                      'episode [%s/%s], cycle [%s], '
+                      'curr threshold [%.5f], total frames [%s]' % (
+                          ep + 1, num_episodes, cycle + 1, get_thres(ep), 
+                      env.total_step_count), flush=True)
                 break
                 
             curr_state = next_state
+            agent.optimize()
             
-            if len(agent.replay) < batch_size:
-                if config.record.debug:
-                    print('episode [%s/%s], low memory: [%s/%s]' % (
-                        ep + 1, num_episodes,len(agent.replay), batch_size), flush=True)
-                continue
-                
-            sample_mem = agent.replay.sample(batch_size)
-            batch_0, batch_1, _, batch_3 = zip(*sample_mem)
-            curr_state_batch = torch.cat(batch_0)
-#             print(curr_state_batch.shape)
-            action_batch = torch.cat(batch_1)
-            reward_batch = torch.tensor(batch_3).to(device)
-            state_action_values = agent.q_net(curr_state_batch).gather(1, action_batch)
-            next_state_values = agent.target_net(curr_state_batch).max(1)[0].detach()
-            # compute the expected Q values
-            expected_state_action_values = (next_state_values * config.solver.gamma) + reward_batch
-            # compute Huber loss
-            loss = F.smooth_l1_loss(state_action_values, expected_state_action_values.unsqueeze(1))
-
-            # Optimize the model
-            optimizer.zero_grad()
-            loss.backward()
-            for param in agent.q_net.parameters():
-                param.grad.data.clamp_(-1, 1)
-            optimizer.step()
-
-        # Update the target network, copying all weights and biases in DQN
+        # update the target network, copying all weights and biases in DQN
         if ep % config.solver.update_freq == 0:
             agent.update_target()
+            print('[target network updated]', flush=True)
             
         if ep % config.record.freq == 0:
             agent.save_pth(agent.q_net, config.record.save_path, filename='q_net.pth', 
