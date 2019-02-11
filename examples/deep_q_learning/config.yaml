@@ -11,8 +11,8 @@ solver:
     eps_end: 0.02
     eps_decay: 1000
 replay:
-    capacity: 100000
-    sample_batch: 14400
+    capacity: 10000
+    sample_batch: 100
     dist_sync: False
 record:
     freq: 20

@@ -11,6 +11,6 @@ echo '‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾�
 
 pg-run -rn ${prefix}/${name} -c "${srun_cmd}"
 
-echo"RUN_NAME: ${prefix}/${name}"
-echo"CMD_LINE: sh PG_RUN.sh ${name} ${partition}"
-echo"          DEEP Q-LEARNING COMPLETED"
+echo "RUN_NAME: ${prefix}/${name}"
+echo "CMD_LINE: sh PG_RUN.sh ${name} ${partition}"
+echo "          DEEP Q-LEARNING COMPLETED"
