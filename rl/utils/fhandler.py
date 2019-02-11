@@ -20,7 +20,7 @@ obj_name: the string that will be the name of the saved obj, if not set,
             the saving process will be silent.
 """
 def save_pth(obj, path, filename=None, obj_name=None):
-    if isinstance(obj, nn.Modules):
+    if isinstance(obj, nn.Module):
         obj = obj.state_dict()
     if filename:
         path = os.path.join(path, filename)

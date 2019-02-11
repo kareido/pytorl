@@ -4,19 +4,19 @@ solver:
     env: Breakout-v0
     lr: 0.00001
     gamma: 0.999
-    episodes: 20000
-    frame_step: 1
+    episodes: 2000
+    frame_stack: 4
     update_freq: 20
     eps_start: 1.0
     eps_end: 0.01
-    eps_decay: 1000000
+    eps_decay: 1000
 replay:
-    capacity: 100000
-    sample_batch: 10240
+    capacity: 1000
+    sample_batch: 32
     dist_sync: False
 record:
     freq: 20
     save_path: ./checkpoint
-    render: False
+    render: True
     debug: False
     

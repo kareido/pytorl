@@ -9,12 +9,14 @@ class DQN_Agent(Base_Agent):
                  device, 
                  q_net, 
                  target_net, 
+                 loss, 
                  optimizer, 
                  replay, 
                 ):
         self.device = device
         self.q_net = q_net
         self.target_net = target_net
+        self.loss = loss
         self.optimizer = optimizer
         self.replay = replay
     
@@ -25,6 +27,7 @@ class DQN_Agent(Base_Agent):
         for param_group in self.q_net.parameters():
             torch.nn.init.uniform_(param_group)
         self.update_target()
+        self.target_net.eval()
     
     
     def update_target(self):
@@ -37,7 +40,7 @@ class DQN_Agent(Base_Agent):
         
     
     def next_action(self, thres, rand_act, curr_input=None):
-        sample_val = random.ramdom()
+        sample_val = random.random()
         if sample_val > thres and curr_input is not None:
             with torch.no_grad():
                 curr_q_val = self.q_net(curr_input)
@@ -48,7 +51,7 @@ class DQN_Agent(Base_Agent):
         
         
     def optimize(self):
-        
+        pass
     
     
         
