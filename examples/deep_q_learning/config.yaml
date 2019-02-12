@@ -14,10 +14,11 @@ solver:
 greedy:
     mode: framed  # episodic, framed
     start: 1
-    steps: 200000
-    end: 0.02   
+    end: 0.02
+    steps: 102400
+    decay: linear  
 replay:
-    capacity: 10000
+    capacity: 100000
     sample_batch: 32
 record:
     save_freq: 20

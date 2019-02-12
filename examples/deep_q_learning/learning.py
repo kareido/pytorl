@@ -21,13 +21,14 @@ def update_target_controller(agent, freq, mode, cfg_mode):
     return _controller
 
 
-def thres_controller(start, end, steps, mode, num_episodes):
+def thres_controller(start, end, steps, decay, mode, num_episodes):
     assert mode in {'episodic', 'framed'}
     if not steps: 
         if mode == 'framed':
             raise ValueError('steps must be specified under framed mode')
         steps = num_episodes
-    func = utils.get_thres_func(eps_start=start, eps_end=end, steps=steps)
+    func = utils.get_epsilon_greedy_func(eps_start=start, eps_end=end, 
+                                         steps=steps, decay=decay)
     if mode == 'episodic':
         def _controller(ep, frame):
             return func(ep)
@@ -97,6 +98,7 @@ def main():
                         config.greedy.start, 
                         config.greedy.end, 
                         config.greedy.steps, 
+                        config.greedy.decay, 
                         config.greedy.mode, 
                         num_episodes)
     # get target update controller
@@ -129,8 +131,8 @@ def main():
                 agent.replay.push(exp)
             else:
                 print(time.strftime('[%Y-%m-%d-%H:%M:%S]:'), 
-                      'episode [%s/%s], cycle [%s], '
-                      'curr threshold [%.5f], total frames [%s]' % (
+                      'episode [%s/%s], duration [%s], '
+                      'eps thres [%.3f], frames past [%s]' % (
                           ep + 1, num_episodes, cycle + 1, 
                           get_thres(ep, env.total_step_count), 
                           env.total_step_count), flush=True)
@@ -145,10 +147,10 @@ def main():
         episodic_update_target(ep)
             
         if ep % config.record.save_freq == 0:
-            agent.save_pth(agent.q_net, config.record.save_path, filename='q_net.pth', 
-                          obj_name='q_network')
-            agent.save_pth(agent.target_net, config.record.save_path, filename='target_net.pth', 
-                          obj_name='target_network')
+            agent.save_pth(agent.q_net, config.record.save_path,
+                           filename='q_net.pth', obj_name='q_network')
+            agent.save_pth(agent.target_net, config.record.save_path, 
+                           filename='target_net.pth', obj_name='target_network')
             print('[latest models saved]', flush=True)
             
 
