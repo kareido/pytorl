@@ -62,6 +62,13 @@ def main():
     random.seed(seed)
     torch.cuda.manual_seed(seed)
     torch.manual_seed(seed)
+    
+    ################################################################
+    # RECORDER
+    # tensorboard
+    tensorboard = utils.get_tensorboard_writer(logdir='..')
+    tensorboard.add_textfile('config', cfg_reader.config_path)
+    
     ################################################################
     # ENVIRONMENT
     resize = T.Compose([T.ToPILImage(),
@@ -74,7 +81,7 @@ def main():
     env.seed(seed)
     env.set_frame_stack(num_frames=frame_stack, stack_init_mode='noop')
     env.set_single_life_mode(True)
-    # equivalent to update q-net per 4 frames 
+    # equivalent to update q-net per skip + 1 frames 
     env.set_frameskip_mode(skip=3, discount=config.solver.gamma)
     num_actions = env.action_space.n
 
@@ -103,10 +110,12 @@ def main():
                       replay = replay)
     agent.reset()
     agent.set_optimize_func(batch_size = batch_size, 
-                            gamma = config.solver.gamma)
+                            gamma = config.solver.gamma, 
+                            tensorboard = tensorboard, 
+                            env=env)
     
     ################################################################
-    # UTILITIES
+    # FUNCTION SUPPORTS
     # get threshold between calculated/random action
     get_thres = thres_controller(
                         config.greedy.start, 
@@ -130,29 +139,27 @@ def main():
                                 config.solver.target.update_mode,
                                 debug=config.record.debug
                                 )
-
+    
     ################################################################
     # TRAINING 
     for ep in range(num_episodes):
         env.reset(init_mode='fire')
-        thres = get_thres(ep, env.total_step_count)
         # initial random action
         action = env.sample()
         curr_state, _, done, _ = env.step(action)
         for cycle in count():
+            thres = get_thres(ep, env.total_step_count)
             action = agent.next_action(thres, env.sample(), curr_input=curr_state)
             if not done:
                 next_state, reward, done, _ = env.step(action)
                 exp = agent.replay.form_obj(curr_state, action, next_state, reward)
                 agent.replay.push(exp)
-            else:
-                print(time.strftime('[%Y-%m-%d-%H:%M:%S]:'), 
-                      'episode [%s/%s], ep-reward [%s], '
-                      'eps-thres [%.2f], frames [%s]' % (
-                      ep + 1, num_episodes, env.episodic_reward.tolist(), 
-                      get_thres(ep, env.total_step_count), 
-                      env.total_step_count), flush=True)
-                break
+                # recording via tensorboard
+                tensorboard.add_scalar('step/reward', reward, env.total_step_count)
+                tensorboard.add_scalar('step/thres', thres, env.total_step_count)
+                tensorboard.add_scalar('replay/size', len(agent.replay), 
+                                                           env.total_step_count)
+            else: break
                 
             curr_state = next_state
             agent.optimize()
@@ -161,13 +168,21 @@ def main():
             
         # potentially update the target network
         episodic_update_target(ep)
-            
+        
+        print(time.strftime('[%Y-%m-%d-%H:%M:%S]:'), 
+              'episode [%s/%s], ep-reward [%s], '
+              'eps-thres [%.2f], frames [%s]' % (
+              ep + 1, num_episodes, env.episodic_reward.tolist(), 
+              thres, env.total_step_count), flush=True)
+        # recording via tensorboard
+        tensorboard.add_scalar('episode/reward', env.episodic_reward.item(), ep + 1)
+        tensorboard.add_scalar('episode/thres', thres, ep + 1)
+
         if ep % config.record.save_freq == 0:
             agent.save_pth(agent.q_net, config.record.save_path,
                            filename='q_net.pth', obj_name='q_network')
             agent.save_pth(agent.target_net, config.record.save_path, 
                            filename='target_net.pth', obj_name='target_network')
-            print('[latest models saved]', flush=True)
             
 
 if __name__ == '__main__':

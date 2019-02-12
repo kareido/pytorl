@@ -23,7 +23,8 @@ class _DotConfig(dict):
         raise UserWarning('cannot override config entry')
 
 
-"""
+
+""" [!]DEPRECATED
 filename: is used to parse config filename directly in the program
             if not specifed, config file will be parsed via argparse
 
@@ -46,13 +47,33 @@ def _get_config(filename=None, default='config.yaml'):
     return _DotConfig(_raw_cfg)
 
 
+
 """
 public interface for getting config conents
+
+filename: is used to parse config filename directly in the program
+            if not specifed, config file will be parsed via argparse
+
+default: default config parser argument
 """
 class ConfigReader:
     def __init__(self, filename=None, default='config.yaml'):
-        self.config = _get_config(filename=None, default='config.yaml')
-    
+        if filename is None:
+            parser = argparse.ArgumentParser()
+            parser.add_argument('--config', '-cfg', type=str, default=default)
+            _cfg_name = parser.parse_args().config
+        else:
+            _cfg_name = filename
+
+        assert type(_cfg_name) == str, 'invalid config filename specified (not a string type)'
+        assert _cfg_name.rsplit('.', 1)[-1] == 'yaml', 'unspported config file type yet (not .yaml)'
+        with open(_cfg_name, 'r') as _cfg_f:
+            _raw_cfg = yaml.load(_cfg_f)
+        
+        self.config_path = _cfg_name
+        self.config = _DotConfig(_raw_cfg)
+
+        
     def get_config(self):
         return self.config
     

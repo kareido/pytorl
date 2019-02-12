@@ -4,7 +4,7 @@ solver:
     env: PongNoFrameskip-v4
     lr: 0.0001
     gamma: 0.99
-    episodes: 1000
+    episodes: 4000
     frame_stack: 4
     target:
         update_mode: framed  # episodic, framed
@@ -15,7 +15,7 @@ greedy:
     mode: framed  # episodic, framed
     start: 1
     end: 0.02
-    steps: 409600
+    steps: 102400
     decay: linear  # linear, exponential
 replay:
     capacity: 100000

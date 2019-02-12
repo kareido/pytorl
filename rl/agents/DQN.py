@@ -1,5 +1,6 @@
 import random
 import torch
+import torch.nn as nn
 from torch.nn.utils import clip_grad_value_
 from ._Base import BaseAgent
 import rl.networks as network
@@ -27,11 +28,17 @@ class DQN_Agent(BaseAgent):
                             lr=self._lr)
         self._optimize = None
     
+    
     def reset(self):
         self.replay.clear()
         self.set_device()
-        for param_group in self.q_net.parameters():
-            torch.nn.init.uniform_(param_group)
+        for name, params in self.q_net.named_parameters():
+            if 'bias' in name:
+                # to avoid 'Fan in and fan out can not be computed 
+                # for tensor with fewer than 2 dimensions' problem
+                nn.init.zeros_(params)
+            else:
+                nn.init.xavier_normal_(params)
         self.update_target()
         self.q_net.train(True)
         self.target_net.train(False)
@@ -39,6 +46,7 @@ class DQN_Agent(BaseAgent):
                             self.q_net.parameters(), 
                             lr=self._lr)
         self._optimize = None
+    
     
     def update_target(self):
         self.target_net.load_state_dict(self.q_net.state_dict())
@@ -59,8 +67,12 @@ class DQN_Agent(BaseAgent):
             # guarantee the return value is legal
             return rand_act.view(1, 1).to('cpu')
         
-    
-    def set_optimize_func(self, batch_size, gamma):
+        
+    """
+    add tensorboard and env to visualize training
+    """
+    def set_optimize_func(self, batch_size, gamma, tensorboard=None, env=None):
+        if tensorboard is not None: assert env
         def _optimize():
             if len(self.replay) < batch_size:
                 return
@@ -69,18 +81,36 @@ class DQN_Agent(BaseAgent):
             curr_state_batch = torch.cat(batch.curr_state).to(self.device)
             action_batch = torch.cat(batch.action).to(self.device)
             reward_batch = torch.tensor(batch.reward).to(self.device)
-            state_action_values = self.q_net(curr_state_batch).gather(1, action_batch)
-            next_state_values = self.target_net(curr_state_batch).max(1)[0].detach()
+            predicted_q_values = self.q_net(curr_state_batch).gather(1, action_batch)
+            # compute Q values via stationary target net
+            targeted_q_values = self.target_net(curr_state_batch).max(1)[0].detach()
             # compute the expected Q values
-            expected_state_action_values = (next_state_values * gamma) + reward_batch
+            expected_q_values = (targeted_q_values * gamma) + reward_batch
+
             # compute Huber loss
-            q_net_loss = self.loss(state_action_values, expected_state_action_values.unsqueeze(1))
+            q_net_loss = self.loss(predicted_q_values, expected_q_values.unsqueeze(1))
             # optimize the model
             self.optimizer.zero_grad()
             q_net_loss.backward()
             clip_grad_value_(self.q_net.parameters(), 1)
             self.optimizer.step()
-            
+            # tensorboard recording
+            if tensorboard is not None:
+                reward_mean = reward_batch.mean().item()
+                predicted_q_values_mean = predicted_q_values.mean().item()
+                targeted_q_values_mean = targeted_q_values.mean().item()
+                expected_q_values_mean = expected_q_values.mean().item()
+                
+                tensorboard.add_scalar('step_replay/reward-mean', reward_mean, 
+                                       env.total_step_count)
+                tensorboard.add_scalar('step/loss', q_net_loss, env.total_step_count)
+                tensorboard.add_scalar('step/predicted_q_values-mean', 
+                                       predicted_q_values_mean, env.total_step_count)
+                tensorboard.add_scalar('step/targeted_q_values-mean', 
+                                       targeted_q_values_mean, env.total_step_count)
+                tensorboard.add_scalar('step/expected_q_values-mean', 
+                                       expected_q_values_mean, env.total_step_count)
+                
         self._optimize = _optimize
     
         

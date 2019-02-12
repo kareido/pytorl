@@ -34,6 +34,8 @@ class _CommonWrapper(gym.Wrapper):
         self.total_step_count = 0
         self.curr_reward = 0
         self.episodic_reward = 0
+        # to make sure curr_ep == ep in main()
+        self.curr_ep = -1
         # frame stack
         self.num_frames = None
         self.stack_init_mode = None
@@ -104,6 +106,8 @@ class _CommonWrapper(gym.Wrapper):
         self.episodic_reward = 0
         self.curr_step_count = 0
         self.env.reset()
+        # update curr_ep
+        self.curr_ep += 1
         if self.frame_stack is not None:
             self.frame_stack.clear()
         if init_mode:
@@ -195,8 +199,8 @@ class _CommonWrapper(gym.Wrapper):
         if skip:
             self.frameskip = skip
             self.discount = discount
-            print('FRAMESKIP: ADDITIONAL '
-                  '[%s] PER UPDATE' % skip, flush=True)
+            print('FRAMESKIP: [%s] FRAMES PER UPDATE' % (
+                                skip + 1), flush=True)
         else:
             self.frameskip = 0
             print('FRAMESKIP MODE: [OFF]', flush=True)
