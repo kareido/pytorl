@@ -23,7 +23,10 @@ def update_target_controller(agent, freq, mode, cfg_mode):
 
 def thres_controller(start, end, steps, mode, num_episodes):
     assert mode in {'episodic', 'framed'}
-    if not steps: steps = num_episodes
+    if not steps: 
+        if mode == 'framed':
+            raise ValueError('steps must be specified under framed mode')
+        steps = num_episodes
     func = utils.get_thres_func(eps_start=start, eps_end=end, steps=steps)
     if mode == 'episodic':
         def _controller(ep, frame):
