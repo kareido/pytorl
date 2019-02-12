@@ -199,8 +199,8 @@ class _CommonWrapper(gym.Wrapper):
                   '[%s] PER UPDATE' % skip, flush=True)
         else:
             self.frameskip = 0
-            print('FRAMESKIP MODE: [OFF]', flush=True)        
-    
+            print('FRAMESKIP MODE: [OFF]', flush=True)
+            
 
     
 def get_env(env_name, tsfm, render=False):

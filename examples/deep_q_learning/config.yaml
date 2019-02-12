@@ -1,5 +1,5 @@
 algorithm: deep_q_learning
-seed: 1024
+seed: 123
 solver:
     env: PongNoFrameskip-v4
     lr: 0.0001
@@ -8,7 +8,7 @@ solver:
     frame_stack: 4
     target:
         update_mode: framed  # episodic, framed
-        update_freq: 1000
+        update_freq: 4000
     loss: smooth_l1_loss
     optimizer: Adam
 greedy:

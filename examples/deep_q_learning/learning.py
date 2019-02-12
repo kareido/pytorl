@@ -1,4 +1,5 @@
 import os
+import random
 import time
 from itertools import count
 import torch
@@ -11,13 +12,15 @@ from rl.agents import DQN_Agent
 """
 controller for when to update target
 """
-def update_target_controller(agent, freq, mode, cfg_mode):
+def update_target_controller(agent, freq, mode, cfg_mode, debug=False):
     assert mode in {'episodic', 'framed'}
     assert cfg_mode in {'episodic', 'framed'}
     def _controller(num):
         if mode == cfg_mode and num % freq == 0:
             agent.update_target()
-            print('target network updated at %s [%s]' % (mode, num), flush=True)
+            if debug:
+                print('target network updated at %s [%s]' % (
+                        mode, num), flush=True)
     return _controller
 
 
@@ -48,10 +51,16 @@ def main():
     # CONFIG
     cfg_reader = utils.ConfigReader()
     config = cfg_reader.get_config()
+    seed = config.seed
     num_episodes = config.solver.episodes
     frame_stack = config.solver.frame_stack
     batch_size = config.replay.sample_batch
     
+    # seeding
+    np.random.seed(seed)
+    random.seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.manual_seed(seed)
     ################################################################
     # ENVIRONMENT
     resize = T.Compose([T.ToPILImage(),
@@ -60,6 +69,8 @@ def main():
                     T.ToTensor()])
     env = utils.get_env(config.solver.env, resize,
                         render=config.record.render)
+    # seeding
+    env.seed(seed)
     env.set_frame_stack(num_frames=frame_stack, stack_init_mode='noop')
     env.set_single_life_mode(True)
     # equivalent to update q-net per 4 frames 
@@ -108,13 +119,15 @@ def main():
                                 agent, 
                                 config.solver.target.update_freq, 
                                 'episodic', 
-                                config.solver.target.update_mode
+                                config.solver.target.update_mode, 
+                                debug=config.record.debug
                                 )
     framed_update_target = update_target_controller(
                                 agent, 
                                 config.solver.target.update_freq, 
                                 'framed', 
-                                config.solver.target.update_mode
+                                config.solver.target.update_mode,
+                                debug=config.record.debug
                                 )
 
     ################################################################
