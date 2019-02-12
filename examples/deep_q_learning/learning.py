@@ -2,6 +2,7 @@ import os
 import random
 import time
 from itertools import count
+import numpy as np
 import torch
 import torchvision.transforms as T
 import rl.utils as utils
