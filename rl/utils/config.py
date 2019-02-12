@@ -1,5 +1,7 @@
 import argparse
 import yaml
+import torch.nn.functional as F
+import torch.optim as optim
 
 
 class _DotConfig(dict):
@@ -20,8 +22,14 @@ class _DotConfig(dict):
     def __setattr__(self, key, value):
         raise UserWarning('cannot override config entry')
 
-    
-def get_config(filename=None, default='config.yaml'):
+
+"""
+filename: is used to parse config filename directly in the program
+            if not specifed, config file will be parsed via argparse
+
+default: default config parser argument
+"""
+def _get_config(filename=None, default='config.yaml'):
     if filename is None:
         parser = argparse.ArgumentParser()
         parser.add_argument('--config', '-cfg', type=str, default=default)
@@ -36,3 +44,22 @@ def get_config(filename=None, default='config.yaml'):
         _raw_cfg = yaml.load(_cfg_f)
     
     return _DotConfig(_raw_cfg)
+
+
+"""
+public interface for getting config conents
+"""
+class ConfigReader:
+    def __init__(self, filename=None, default='config.yaml'):
+        self.config = _get_config(filename=None, default='config.yaml')
+    
+    def get_config(self):
+        return self.config
+    
+    def get_loss_func(self, attr):
+        return getattr(F, attr)
+    
+    def get_optimizer_func(self, attr):
+        return getattr(optim, attr)
+    
+    

@@ -1,11 +1,11 @@
 import random
 import torch
 from torch.nn.utils import clip_grad_value_
-from ._Base import Base_Agent
+from ._Base import BaseAgent
 import rl.networks as network
 
 
-class DQN_Agent(Base_Agent):
+class DQN_Agent(BaseAgent):
     def __init__(self, 
                  device, 
                  q_net, 
@@ -18,14 +18,14 @@ class DQN_Agent(Base_Agent):
         self.device = device
         self.q_net = q_net
         self.target_net = target_net
-        self.get_loss = loss_func
-        self.optimizer_func = optimizer_func
-        self.lr = lr
+        self.loss = loss_func
+        self._get_optimizer = optimizer_func
+        self._lr = lr
         self.replay = replay
-        self.optimizer = self.optimizer_func(
+        self.optimizer = self._get_optimizer(
                             self.q_net.parameters(), 
-                            lr=self.lr)
-        self.optimize_func = None
+                            lr=self._lr)
+        self._optimize = None
     
     def reset(self):
         self.replay.clear()
@@ -35,10 +35,10 @@ class DQN_Agent(Base_Agent):
         self.update_target()
         self.q_net.train(True)
         self.target_net.train(False)
-        self.optimizer = self.optimizer_func(
+        self.optimizer = self._get_optimizer(
                             self.q_net.parameters(), 
-                            lr=self.lr)
-        self.optimize_func = None
+                            lr=self._lr)
+        self._optimize = None
     
     def update_target(self):
         self.target_net.load_state_dict(self.q_net.state_dict())
@@ -61,11 +61,11 @@ class DQN_Agent(Base_Agent):
         
     
     def set_optimize_func(self, batch_size, gamma):
-        def optimize_func():
+        def _optimize():
             if len(self.replay) < batch_size:
                 return
             sample_exp = self.replay.sample(batch_size)
-            batch = self.replay.zipper(*zip(*sample_exp))
+            batch = self.replay.form_obj(*zip(*sample_exp))
             curr_state_batch = torch.cat(batch.curr_state).to(self.device)
             action_batch = torch.cat(batch.action).to(self.device)
             reward_batch = torch.tensor(batch.reward).to(self.device)
@@ -74,20 +74,20 @@ class DQN_Agent(Base_Agent):
             # compute the expected Q values
             expected_state_action_values = (next_state_values * gamma) + reward_batch
             # compute Huber loss
-            loss = self.get_loss(state_action_values, expected_state_action_values.unsqueeze(1))
+            q_net_loss = self.loss(state_action_values, expected_state_action_values.unsqueeze(1))
             # optimize the model
             self.optimizer.zero_grad()
-            loss.backward()
+            q_net_loss.backward()
             clip_grad_value_(self.q_net.parameters(), 1)
             self.optimizer.step()
             
-        self.optimize_func = optimize_func
+        self._optimize = _optimize
     
         
     def optimize(self):
-        if not self.optimize_func:
+        if not self._optimize:
             raise ValueError('should call set_optimize_func first')
-        self.optimize_func()
+        self._optimize()
         
         
         

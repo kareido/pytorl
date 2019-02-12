@@ -10,7 +10,7 @@ this base agent contains:
 """
 
 
-class Base_Agent:
+class BaseAgent:
     def __init__(self):
         raise NotImplementedError('cannot initialize base agent')
     
