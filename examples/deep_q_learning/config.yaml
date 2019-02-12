@@ -15,11 +15,11 @@ greedy:
     mode: framed  # episodic, framed
     start: 1
     end: 0.02
-    steps: 102400
-    decay: linear  
+    steps: 409600
+    decay: linear  # linear, exponential
 replay:
     capacity: 100000
-    sample_batch: 32
+    sample_batch: 128
 record:
     save_freq: 20
     save_path: ./checkpoint

@@ -60,8 +60,10 @@ def main():
                     T.ToTensor()])
     env = utils.get_env(config.solver.env, resize,
                         render=config.record.render)
-    env.set_frame_stack(num_frames=frame_stack, stack_init_mode='fire')
-    env.set_single_life_mode()
+    env.set_frame_stack(num_frames=frame_stack, stack_init_mode='noop')
+    env.set_single_life_mode(True)
+    # equivalent to update q-net per 4 frames 
+    env.set_frameskip_mode(skip=3, discount=config.solver.gamma)
     num_actions = env.action_space.n
 
     ################################################################
@@ -118,7 +120,7 @@ def main():
     ################################################################
     # TRAINING 
     for ep in range(num_episodes):
-        env.reset()
+        env.reset(init_mode='fire')
         thres = get_thres(ep, env.total_step_count)
         # initial random action
         action = env.sample()
@@ -131,11 +133,11 @@ def main():
                 agent.replay.push(exp)
             else:
                 print(time.strftime('[%Y-%m-%d-%H:%M:%S]:'), 
-                      'episode [%s/%s], duration [%s], '
-                      'eps thres [%.3f], frames past [%s]' % (
-                          ep + 1, num_episodes, cycle + 1, 
-                          get_thres(ep, env.total_step_count), 
-                          env.total_step_count), flush=True)
+                      'episode [%s/%s], ep-reward [%s], '
+                      'eps-thres [%.2f], frames [%s]' % (
+                      ep + 1, num_episodes, env.episodic_reward.tolist(), 
+                      get_thres(ep, env.total_step_count), 
+                      env.total_step_count), flush=True)
                 break
                 
             curr_state = next_state

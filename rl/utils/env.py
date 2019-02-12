@@ -29,9 +29,11 @@ class _CommonWrapper(gym.Wrapper):
         super(_CommonWrapper, self).__init__(env)
         self.tsfm = tsfm
         self.render = render
-
+        # metrics
         self.curr_step_count = 0
         self.total_step_count = 0
+        self.curr_reward = 0
+        self.episodic_reward = 0
         # frame stack
         self.num_frames = None
         self.stack_init_mode = None
@@ -39,6 +41,17 @@ class _CommonWrapper(gym.Wrapper):
         # single life mode
         self.only_single_life = False
         self.lives = 0
+        # frameskip mode
+        """
+        note: this frameskip means ADDITIONAL steps taken for each 
+              action, excluding the first step of each action since
+              we must take it anyway.
+              
+        e.g. if we want 4 frame-steps per action, we should call
+             set_frameskip_mode(skip=3, discount=config.solver.gamma)
+        """
+        self.frameskip = 0
+        self.discount = 1
     
     
     def step(self, action):
@@ -46,17 +59,31 @@ class _CommonWrapper(gym.Wrapper):
             action = action.tolist()
         if self.frame_stack is not None:
             # check if frame stack is cold
-            if len(self.frame_stack) < self.num_frames:
-                self._init_episode(mode = self.stack_init_mode, 
-                                   steps = self.num_frames - 1)
+            if len(self.frame_stack) < self.num_frames - 1:
+                self._init_episode(
+                    mode=self.stack_init_mode, 
+                    steps=self.num_frames - len(self.frame_stack) - 1
+                )
             else:
                 self.frame_stack.popleft()
-                
-        ob, reward, done, info = self.env.step(action)
-        ob = self.transform_ob(ob)
         
-        self.curr_step_count += 1
-        self.total_step_count += 1
+        # MUST reset curr_reward before self.env.step(action)
+        self.curr_reward = 0
+        
+        for _ in range(self.frameskip + 1):
+            ob, reward, done, info = self.env.step(action)
+            # accumulate curr_reward
+            self.curr_reward *= self.discount
+            self.curr_reward += reward
+            if self.render: self.env.render()
+            if done: break
+        ob = self.transform_ob(ob)
+        # clipping reward
+        self.curr_reward = self.reward(self.curr_reward)
+        # metrics
+        self.episodic_reward += self.curr_reward
+        self.curr_step_count += self.frameskip + 1
+        self.total_step_count += self.frameskip + 1
         
         if self.frame_stack is not None:
             self.frame_stack.append(ob)
@@ -68,20 +95,19 @@ class _CommonWrapper(gym.Wrapper):
             if lives < self.lives and lives > 0:
                 done = True
             self.lives = lives
-        
-        if self.render:
-            self.env.render()
             
-        return ret_ob.unsqueeze(0), self.reward(reward), done, info
+        return ret_ob.unsqueeze(0), self.curr_reward, done, info
 
     
     def reset(self, init_mode=None, init_steps=1):
+        # reset episodic metrics
+        self.episodic_reward = 0
         self.curr_step_count = 0
         self.env.reset()
         if self.frame_stack is not None:
             self.frame_stack.clear()
         if init_mode:
-            _init_episode(mode = init_mode, 
+            self._init_episode(mode = init_mode, 
                           steps = init_steps)
         return self.transform_ob()
 
@@ -116,7 +142,7 @@ class _CommonWrapper(gym.Wrapper):
         return torch.tensor(self.action_space.sample())
     
     
-    def set_frame_stack(self, num_frames=4, stack_init_mode='random'):
+    def set_frame_stack(self, num_frames=4, stack_init_mode='noop'):
         assert type(num_frames) == int
         if num_frames <= 1:
             raise ValueError('invalid num_frames specified')
@@ -140,8 +166,7 @@ class _CommonWrapper(gym.Wrapper):
         elif mode == 'fire':
             assert self.unwrapped.get_action_meanings()[1] == 'FIRE'
             action = 1
-        if self.frame_stack is not None:
-            assert not self.frame_stack, 'stack not empty'
+            
         for _ in range(steps):
             ob, _, done, _ = self.env.step(action)
             ob = self.transform_ob(ob)
@@ -151,8 +176,7 @@ class _CommonWrapper(gym.Wrapper):
                     while len(self.frame_stack) < steps:
                         self.frame_stack.append(ob)
                     break
-            if done:
-                break
+
         if done:
             print('warning: already done '
                   'during initializing episode', flush=True)
@@ -162,9 +186,20 @@ class _CommonWrapper(gym.Wrapper):
     def set_single_life_mode(self, status=True):
         self.only_single_life = status
         if status:
-            print('SINGLE LIFE MODE: ON', flush=True)
+            print('SINGLE LIFE MODE: [ON]', flush=True)
         else:
-            print('SINGLE LIFE MODE: OFF', flush=True)
+            print('SINGLE LIFE MODE: [OFF]', flush=True)
+            
+    
+    def set_frameskip_mode(self, skip=0, discount=1):
+        if skip:
+            self.frameskip = skip
+            self.discount = discount
+            print('FRAMESKIP: ADDITIONAL '
+                  '[%s] PER UPDATE' % skip, flush=True)
+        else:
+            self.frameskip = 0
+            print('FRAMESKIP MODE: [OFF]', flush=True)        
     
 
     
