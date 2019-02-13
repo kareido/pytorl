@@ -205,6 +205,8 @@ class _CommonWrapper(gym.Wrapper):
             self.frameskip = 0
             print('FRAMESKIP MODE: [OFF]', flush=True)
             
+    def get_global_steps(self):
+        return self.total_step_count
 
     
 def get_env(env_name, tsfm, render=False):

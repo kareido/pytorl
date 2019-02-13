@@ -6,20 +6,23 @@ solver:
     gamma: 0.99
     episodes: 4000
     frame_stack: 4
+    learn_freq: 4
     target:
         update_mode: framed  # episodic, framed
-        update_freq: 4000
-    loss: smooth_l1_loss
+        update_freq: 1000
+    loss: mse_loss
     optimizer: Adam
 greedy:
     mode: framed  # episodic, framed
     start: 1
     end: 0.02
-    steps: 102400
+    steps: 25600
+    delay: 40000
     decay: linear  # linear, exponential
 replay:
     capacity: 100000
-    sample_batch: 128
+    init_num: 10000
+    sample_batch: 32
 record:
     save_freq: 20
     save_path: ./checkpoint

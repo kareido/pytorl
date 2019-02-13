@@ -38,7 +38,7 @@ class DQN_Agent(BaseAgent):
                 # for tensor with fewer than 2 dimensions' problem
                 nn.init.zeros_(params)
             else:
-                nn.init.xavier_normal_(params)
+                nn.init.kaiming_normal_(params)
         self.update_target()
         self.q_net.train(True)
         self.target_net.train(False)
@@ -57,9 +57,9 @@ class DQN_Agent(BaseAgent):
         self.target_net = self.target_net.to(self.device)
         
     
-    def next_action(self, thres, rand_act, curr_input=None):
+    def next_action(self, thres, rand_act, curr_input):
         sample_val = random.random()
-        if sample_val > thres and curr_input is not None:
+        if sample_val > thres:
             with torch.no_grad():
                 curr_q_val = self.q_net(curr_input.to(self.device))
                 return curr_q_val.argmax(1).view(1, 1).to('cpu')
@@ -71,10 +71,16 @@ class DQN_Agent(BaseAgent):
     """
     add tensorboard and env to visualize training
     """
-    def set_optimize_func(self, batch_size, gamma, tensorboard=None, env=None):
-        if tensorboard is not None: assert env
+    def set_optimize_func(self, batch_size, gamma, min_replay=None, 
+                          learn_freq=1, tensorboard=None, counter=None):
+        assert type(learn_freq) == int and learn_freq >= 1
+        if tensorboard is not None and learn_freq >= 2: assert counter
+        if min_replay is None: min_replay = batch_size
         def _optimize():
-            if len(self.replay) < batch_size:
+            # update condition
+            if len(self.replay) < min_replay:
+                return
+            if learn_freq >= 2 and counter() % learn_freq != 0:
                 return
             sample_exp = self.replay.sample(batch_size)
             batch = self.replay.form_obj(*zip(*sample_exp))
@@ -86,8 +92,8 @@ class DQN_Agent(BaseAgent):
             targeted_q_values = self.target_net(curr_state_batch).max(1)[0].detach()
             # compute the expected Q values
             expected_q_values = (targeted_q_values * gamma) + reward_batch
-
-            # compute Huber loss
+#             print((predicted_q_values - expected_q_values.unsqueeze(1)).sum(), flush=True)
+            # compute loss
             q_net_loss = self.loss(predicted_q_values, expected_q_values.unsqueeze(1))
             # optimize the model
             self.optimizer.zero_grad()
@@ -101,15 +107,15 @@ class DQN_Agent(BaseAgent):
                 targeted_q_values_mean = targeted_q_values.mean().item()
                 expected_q_values_mean = expected_q_values.mean().item()
                 
-                tensorboard.add_scalar('step_replay/reward-mean', reward_mean, 
-                                       env.total_step_count)
-                tensorboard.add_scalar('step/loss', q_net_loss, env.total_step_count)
+                tensorboard.add_scalar('step_replay/reward-mean', 
+                                       reward_mean, counter())
+                tensorboard.add_scalar('step/loss', q_net_loss, counter())
                 tensorboard.add_scalar('step/predicted_q_values-mean', 
-                                       predicted_q_values_mean, env.total_step_count)
+                                       predicted_q_values_mean, counter())
                 tensorboard.add_scalar('step/targeted_q_values-mean', 
-                                       targeted_q_values_mean, env.total_step_count)
+                                       targeted_q_values_mean, counter())
                 tensorboard.add_scalar('step/expected_q_values-mean', 
-                                       expected_q_values_mean, env.total_step_count)
+                                       expected_q_values_mean, counter())
                 
         self._optimize = _optimize
     

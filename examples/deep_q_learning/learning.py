@@ -25,14 +25,14 @@ def update_target_controller(agent, freq, mode, cfg_mode, debug=False):
     return _controller
 
 
-def thres_controller(start, end, steps, decay, mode, num_episodes):
+def thres_controller(start, end, steps, delay, decay, mode, num_episodes):
     assert mode in {'episodic', 'framed'}
     if not steps: 
         if mode == 'framed':
             raise ValueError('steps must be specified under framed mode')
         steps = num_episodes
     func = utils.get_epsilon_greedy_func(eps_start=start, eps_end=end, 
-                                         steps=steps, decay=decay)
+                                     delay=delay, steps=steps, decay=decay)
     if mode == 'episodic':
         def _controller(ep, frame):
             return func(ep)
@@ -93,8 +93,6 @@ def main():
     target_net = Q_Network(input_size=(frame_stack, 84, 84), 
                            num_actions=num_actions).to(device)
     
-    target_net.load_state_dict(q_net.state_dict())
-    target_net.eval()
     loss_func = cfg_reader.get_loss_func(config.solver.loss)
     optimizer_func = cfg_reader.get_optimizer_func(config.solver.optimizer)
     lr = config.solver.lr
@@ -109,10 +107,12 @@ def main():
                       lr = lr, 
                       replay = replay)
     agent.reset()
-    agent.set_optimize_func(batch_size = batch_size, 
-                            gamma = config.solver.gamma, 
-                            tensorboard = tensorboard, 
-                            env=env)
+    agent.set_optimize_func(batch_size=config.replay.sample_batch, 
+                            gamma=config.solver.gamma, 
+                            min_replay=config.replay.init_num, 
+                            learn_freq=config.solver.learn_freq, 
+                            tensorboard=tensorboard, 
+                            counter=env.get_global_steps)
     
     ################################################################
     # FUNCTION SUPPORTS
@@ -121,6 +121,7 @@ def main():
                         config.greedy.start, 
                         config.greedy.end, 
                         config.greedy.steps, 
+                        config.greedy.delay, 
                         config.greedy.decay, 
                         config.greedy.mode, 
                         num_episodes)
@@ -152,7 +153,8 @@ def main():
             action = agent.next_action(thres, env.sample(), curr_input=curr_state)
             if not done:
                 next_state, reward, done, _ = env.step(action)
-                exp = agent.replay.form_obj(curr_state, action, next_state, reward)
+                exp = agent.replay.form_obj(curr_state, action.clone(), 
+                                            next_state, reward.clone())
                 agent.replay.push(exp)
                 # recording via tensorboard
                 tensorboard.add_scalar('step/reward', reward, env.total_step_count)
@@ -161,7 +163,7 @@ def main():
                                                            env.total_step_count)
             else: break
                 
-            curr_state = next_state
+            curr_state = next_state.clone()
             agent.optimize()
             # potentially update the target network
             framed_update_target(env.total_step_count)
