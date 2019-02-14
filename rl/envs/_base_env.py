@@ -55,7 +55,7 @@ class Env(object):
         self._single_life = False
         self._tensorboard = None
     
-    def current_ob(self):
+    def current_state(self):
         raise NotImplementedError()
     
     def num_actions(self):
@@ -188,6 +188,7 @@ def _get_attr_setter(target):
     def _attr_setter(attr, value):
         if not hasattr(target, attr):
             setattr(target, attr, value)
+#             print('set [%s]' % attr)
     return _attr_setter
         
     
@@ -215,10 +216,12 @@ class MetaEnv(type):
         # have to wrap map as an Iterable to help the map func to work
         tuple(map(attr_setter, base_attrs, base_vals))
         # set base functionalities
-        base_func_names = (attr for attr in dir(base_env) if not attr.startswith('_'))
-        base_func_vals = (getattr(base_env, attr) for attr in base_func_names)
+        # have to wrap base_func_names as an Iterable to avoid missing attributes
+        base_func_names = tuple(attr for attr in dir(base_env) if not attr.startswith('_'))
+        # have to wrap base_func_vals as an Iterable to avoid missing values
+        base_func_vals = tuple(getattr(base_env, attr) for attr in base_func_names)
         # have to wrap map as an Iterable to help the map func to work
-        tuple(map(attr_setter, base_func_names, base_func_vals))
+        x = tuple(map(attr_setter, base_func_names, base_func_vals))
         
         return instance
     
