@@ -34,7 +34,7 @@ class Q_MLP(nn.Module):
     
     def forward(self, x):
         x = self.features(x)
-        x = F.relu(x)
+        x = F.relu(self.fc3(x))
         return x
         
         
