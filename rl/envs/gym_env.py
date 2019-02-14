@@ -4,27 +4,27 @@ import torch
 from collections import deque
 
 
-"""
-this class is a wrapper of original gym environment that helps:
-    1) make the observation in the shape of C * H * W and converts 
-       it along with the reward to torch tensors.
-    2) count steps when step() is called.
-    3) directly sample an action
-    4) multiple frames stack for neural net input.
-    5) initialize episode (and frames stack) with noop, random, fire ops
-    6) one-life per episode mode
+class _GymWrapper(gym.Wrapper):
+    """
+    this class is a wrapper of original gym environment that helps:
+        1) make the observation in the shape of C * H * W and converts 
+           it along with the reward to torch tensors.
+        2) count steps when step() is called.
+        3) directly sample an action
+        4) multiple frames stack for neural net input.
+        5) initialize episode (and frames stack) with noop, random, fire ops
+        6) one-life per episode mode
 
-example:
-    resize = T.Compose([T.ToPILImage(),
-                    T.Grayscale(1), 
-                    T.Resize((84, 84)), 
-                    T.ToTensor()])
-    env = get_env('Breakout-v0', resize, render=True)
-    agent.set_frame_stack(num_frames=4, stack_init_mode='fire')
-    agent.set_single_life_mode(False)    
-    
-"""
-class _CommonWrapper(gym.Wrapper):
+    example:
+        resize = T.Compose([T.ToPILImage(),
+                        T.Grayscale(1), 
+                        T.Resize((84, 84)), 
+                        T.ToTensor()])
+        env = get_env('Breakout-v0', resize, render=True)
+        agent.set_frame_stack(num_frames=4, stack_init_mode='fire')
+        agent.set_single_life_mode(False)    
+
+    """
     def __init__(self, env, tsfm, render):
         super(_CommonWrapper, self).__init__(env)
         self.tsfm = tsfm
@@ -205,12 +205,13 @@ class _CommonWrapper(gym.Wrapper):
             self.frameskip = 0
             print('FRAMESKIP MODE: [OFF]', flush=True)
             
+            
     def get_global_steps(self):
         return self.total_step_count
 
-    
-def get_env(env_name, tsfm, render=False):
+
+def gym_env_maker(env_name, tsfm, render=False):
     orig_env = gym.make(env_name)
-    wrapped_env = _CommonWrapper(orig_env, tsfm, render)
+    wrapped_env = _GymWrapper(orig_env, tsfm, render)
     return wrapped_env
 

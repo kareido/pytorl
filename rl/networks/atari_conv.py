@@ -5,9 +5,9 @@ import torch.nn.functional as F
 
 class Q_Network(nn.Module):
     """
-    wrap a specific network into Q-network
+    build 2-D obervation Q-network, the same as in DeepMind DQN paper
     
-    input_size: a 3-d tuple (or equivalent Iterable) indicating the size of input
+    input_size: a 3-D tuple (or equivalent Iterable) indicating the size of input
     
     num_actions: corresponding to the size of output
     
@@ -18,8 +18,8 @@ class Q_Network(nn.Module):
     """
     def __init__(self, input_size=None, num_actions=None, backbone=None, replace_fc=None):
         super(Q_Network, self).__init__()
-        if input_size is not None and len(input_size) != 3:
-            raise ValueError('invalid input_size specified')
+        if input_size is not None:
+            assert len(input_size) == 3, 'input_size must be a 3-D Iterable'
         self.input_size, self.num_actions = input_size, num_actions
         if backbone:
             self.network = backbone

@@ -2,11 +2,11 @@ import random
 import torch
 import torch.nn as nn
 from torch.nn.utils import clip_grad_value_
-from ._Base import BaseAgent
+from ._base_agent import Agent
 import rl.networks as network
 
 
-class DQN_Agent(BaseAgent):
+class DQN_Agent(Agent):
     def __init__(self, 
                  device, 
                  q_net, 
