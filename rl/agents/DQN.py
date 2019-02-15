@@ -1,4 +1,5 @@
 import random
+import numpy as np
 import torch
 import torch.nn as nn
 from torch.nn.utils import clip_grad_value_
@@ -84,14 +85,30 @@ class DQN_Agent(Agent):
                 return
             sample_exp = self.replay.sample(batch_size)
             batch = self.replay.form_obj(*zip(*sample_exp))
-            curr_state_batch = torch.cat(batch.curr_state).to(self.device)
-            action_batch = torch.cat(batch.action).to(self.device)
-            reward_batch = torch.tensor(batch.reward).to(self.device)
-            predicted_q_values = self.q_net(curr_state_batch).gather(1, action_batch)
+            curr_states = torch.cat(batch.curr_state).to(self.device)
+            actions = torch.cat(batch.action).to(self.device)
+            rewards = torch.tensor(batch.reward).to(self.device)
+            non_final_mask = torch.tensor(tuple(map(lambda s: s is not None, batch.next_state)), 
+                                          device=self.device, dtype=torch.uint8)
+#             np_next_state = np.array(batch.next_state)
+#             np_non_final_mask = (np_next_state == None).astype(np.uint8)
+#             np_final_mask = 1 - np_non_final_mask
+#             non_final_mask = torch.tensor(np_non_final_mask, device=self.device)
+#             final_mask = torch.tensor(np_final_mask, device=self.device)
+            non_final_next_states = torch.cat(
+                                    [s for s in batch.next_state if s is not None]).to(self.device)
+#             final_state = curr_states[np_final_mask]
+            
+            predicted_q_values = self.q_net(curr_states).gather(1, actions)
+            targeted_q_values = torch.zeros(rewards.shape[0], device=self.device)
             # compute Q values via stationary target net
-            targeted_q_values = self.target_net(curr_state_batch).max(1)[0].detach()
+            # this 'try' is to avoid the situation when all next states are None
+            try:
+                targeted_q_values[non_final_mask] = self.target_net(
+                                                        non_final_next_states).max(1)[0].detach()
+            except TypeError: pass
             # compute the expected Q values
-            expected_q_values = (targeted_q_values * gamma) + reward_batch
+            expected_q_values = (targeted_q_values * gamma) + rewards
 #             print((predicted_q_values - expected_q_values.unsqueeze(1)).sum(), flush=True)
             # compute loss
             q_net_loss = self.loss(predicted_q_values, expected_q_values.unsqueeze(1))
@@ -103,7 +120,7 @@ class DQN_Agent(Agent):
             self.optimizer.step()
             # tensorboard recording
             if tensorboard is not None:
-                reward_mean = reward_batch.mean().item()
+                reward_mean = rewards.mean().item()
                 predicted_q_values_mean = predicted_q_values.mean().item()
                 targeted_q_values_mean = targeted_q_values.mean().item()
                 expected_q_values_mean = expected_q_values.mean().item()

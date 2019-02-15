@@ -2,21 +2,21 @@ algorithm: deep_q_learning
 seed: 123
 solver:
     env: PongNoFrameskip-v4
-    lr: 0.0001
+    lr: 0.001
     gamma: 0.99
     episodes: 4000
     frame_stack: 4
-    learn_freq: 1
+    learn_freq: 4
     target:
         update_mode: framed  # episodic, framed
         update_freq: 1000
-    loss: smooth_l1_loss
-    optimizer: RMSprop 
+    loss: mse_loss
+    optimizer: Adam 
 greedy:
     mode: framed  # episodic, framed
     start: 1
     end: 0.02
-    steps: 102400
+    steps: 100000
     delay: 40000
     decay: linear  # linear, exponential
 replay:
@@ -26,6 +26,6 @@ replay:
 record:
     save_freq: 20
     save_path: ./checkpoint
-    render: True
+    render: False
     debug: False
     

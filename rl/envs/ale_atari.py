@@ -23,8 +23,10 @@ class _AtariWrapper(gym.Wrapper, metaclass=MetaEnv):
                         T.Resize((84, 84)), 
                         T.ToTensor()])
         env = make_atari('Breakout-v0', resize, render=True)
-        agent.frame_stack('set', 4)
-        agent.single_life('set', False)
+        env.set_episodic_init('FIRE')
+        env.set_frames_stack(frame_stack)
+        env.set_single_life(True)
+        env.set_frames_action(4)
 
     another important criterion is that only convert an obj to tensor or make it downsampled iff. 
     imminent necessay, otherwise, try not to make conversion which will confuse you latter
@@ -131,7 +133,7 @@ class _AtariWrapper(gym.Wrapper, metaclass=MetaEnv):
 
         
     def step(self, action):
-        if isinstance(action, torch.Tensor): action = action.tolist()
+        if isinstance(action, torch.Tensor): action = action.item()
         _action_reward = 0
         for _ in range(self.frames_action()):
             self.curr_observ, reward, done, info = self.env.step(action)

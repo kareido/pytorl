@@ -7,9 +7,13 @@ from PIL import Image
 import torch
 import torchvision.transforms as T
 from rl.agents import DQN_Agent
-from rl.envs import make_atari_env
-from rl.networks import Q_Network
+from rl.envs import make_atari_env, make_ctrl_env
+from rl.networks import Q_Network, Q_MLP
 import rl.utils as utils
+
+
+os.environ.setdefault('run_name', 'default')
+
 
 """
 controller for when to update target
@@ -71,7 +75,7 @@ def main():
     tensorboard.add_textfile('config', cfg_reader.config_path)
 
     ################################################################
-    # ENVIRONMENT
+#     ATARI ENVIRONMENT
     resize = T.Compose([T.ToPILImage(),
                     T.Grayscale(1),
                     T.Resize((84, 84), interpolation=Image.CUBIC),
@@ -85,6 +89,15 @@ def main():
     env.set_single_life(True)
     env.set_frames_action(4)
     num_actions = env.num_actions()
+    
+    ################################################################
+    # CLASSIC CONTROL ENVIRONMENT
+#     env = make_ctrl_env('CartPole-v1', render=config.record.render)
+#     # seeding
+#     env.seed(seed)
+#     env.set_frames_stack(frame_stack)
+#     env.set_frames_action(1)
+#     num_actions = env.num_actions()
 
     ################################################################
     # AGENT
@@ -93,6 +106,12 @@ def main():
 
     target_net = Q_Network(input_size=(frame_stack, 84, 84),
                            num_actions=num_actions).to(device)
+
+#     q_net = Q_MLP(input_size=(frame_stack, env.observ_shape()),
+#                       num_actions=num_actions).to(device)
+
+#     target_net = Q_MLP(input_size=(frame_stack, env.observ_shape()),
+#                       num_actions=num_actions).to(device)
 
     loss_func = cfg_reader.get_loss_func(config.solver.loss)
     optimizer_func = cfg_reader.get_optimizer_func(config.solver.optimizer)
@@ -149,21 +168,24 @@ def main():
         action = env.sample()
         curr_observ, _, done, _ = env.step(action)
         curr_state = env.state().clone()
-        for cycle in count():
+        done = False
+        while not done:
             thres = get_thres(ep, env.global_frames())
             action = agent.next_action(thres, env.sample(), curr_input=env.state())
             if not done:
                 next_observ, reward, done, _ = env.step(action)
                 next_state = env.state().clone()
-                exp = agent.replay.form_obj(curr_state, action,
-                                            next_state, reward)
-                agent.replay.push(exp)
+            else:
+                next_state = None
+                
+            exp = agent.replay.form_obj(curr_state, action, next_state, reward)
+            agent.replay.push(exp)
+            
                 # recording via tensorboard
-                tensorboard.add_scalar('step/reward', env.action_reward(), env.global_frames())
-                tensorboard.add_scalar('step/thres', thres, env.global_frames())
-                tensorboard.add_scalar('replay/size', len(agent.replay),
-                                                           env.global_frames())
-            else: break
+#                 tensorboard.add_scalar('step/reward', env.action_reward(), env.global_frames())
+            tensorboard.add_scalar('step/thres', thres, env.global_frames())
+            tensorboard.add_scalar('replay/size', len(agent.replay),
+                                                       env.global_frames())
 
             curr_state = next_state
             agent.optimize()
@@ -173,7 +195,8 @@ def main():
         # potentially update the target network
         episodic_update_target(ep)
 
-        print(time.strftime('[%Y-%m-%d-%H:%M:%S]:'),
+        print(time.strftime('[%Y-%m-%d-%H:%M:%S]'), 
+              '[%s]:' % os.environ['run_name'], 
               'episode [%s/%s], ep-reward [%s], '
               'eps-thres [%.2f], frames [%s]' % (
               ep + 1, num_episodes, env.episodic_reward(),
