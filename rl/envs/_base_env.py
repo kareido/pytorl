@@ -12,8 +12,7 @@ regulates and implements some interfaces and standard functionalities, which are
         3) a step method that takes an action and returns observation, 
             reward, done, info
         4) an action space getter
-        5) a current observation getter
-        6) a preprocess method that typically stacks frames into current state
+        5) a current preprocessed state getter
         
     II. common functions and statistics:
         1) a global frame counter and resetter method
@@ -64,13 +63,10 @@ class Env(object):
         self._global_frames = 0
         self._tensorboard = None
     
-    def current_state(self):
+    def state(self):
         raise NotImplementedError()
     
     def num_actions(self):
-        raise NotImplementedError()
-    
-    def preprocessing(self, observation):
         raise NotImplementedError()
         
     def sample(self):
@@ -148,7 +144,7 @@ class Env(object):
         return self._global_episodes 
 
     
-    def tensorboard(self, obj=None):
+    def set_tensorboard(self, obj=None):
         """
         [!]WARNING: should check the legitimacy of num by yourself
         """

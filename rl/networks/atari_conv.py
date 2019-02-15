@@ -12,7 +12,7 @@ class Q_Network(nn.Module):
         num_actions: corresponding to the size of output
         backbone: a pytorch network, if not specified, using original DQN instead
         replace_fc: the name of last linear(i.e. 'fc' or 'last_linear'), if not 
-                        specified, using backbone's last output layer instead.
+            specified, using backbone's last output layer instead.
     """
     def __init__(self, input_size=None, num_actions=None, backbone=None, replace_fc=None):
         super(Q_Network, self).__init__()

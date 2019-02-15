@@ -10,7 +10,7 @@ class Q_MLP(nn.Module):
     
     Args:
         input_size: a 2-D tuple or equivalent Iterable, indicating the size 
-                        of input, i.e, the obervation space
+            of input, i.e, the obervation space
         num_actions: corresponding to the size of output
         hidden_size: size of hidden layer outputs
     """
