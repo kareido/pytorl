@@ -25,12 +25,15 @@ class _DotConfig(dict):
 
 
 """ [!]DEPRECATED
-filename: is used to parse config filename directly in the program
-            if not specifed, config file will be parsed via argparse
-
-default: default config parser argument
+THIS METHOD IS NO LONGER IN USE
 """
 def _get_config(filename=None, default='config.yaml'):
+    """
+    Args:
+        filename: is used to parse config filename directly in the program if not specifed, config 
+            file will be parsed via argparse
+        default: default config parser argument
+    """
     if filename is None:
         parser = argparse.ArgumentParser()
         parser.add_argument('--config', '-cfg', type=str, default=default)
@@ -48,15 +51,14 @@ def _get_config(filename=None, default='config.yaml'):
 
 
 
-"""
-public interface for getting config conents
-
-filename: is used to parse config filename directly in the program
-            if not specifed, config file will be parsed via argparse
-
-default: default config parser argument
-"""
 class ConfigReader:
+    """
+    public interface for getting config conents
+    Args:
+        filename: is used to parse config filename directly in the program if not specifed, config 
+            file will be parsed via argparse
+        default: default config parser argument
+    """
     def __init__(self, filename=None, default='config.yaml'):
         if filename is None:
             parser = argparse.ArgumentParser()

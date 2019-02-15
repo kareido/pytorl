@@ -4,6 +4,7 @@
 this module provides base class/metaclass for creating rl environment using this base can help 
 make your environment compatible with the exsiting implementation of rl algorithms since it 
 regulates and implements some interfaces and standard functionalities, which are:
+    
     I. public interfaces:
         1) a reset method that supports init the first frame
         2) a sample method that samples a random action
@@ -11,6 +12,7 @@ regulates and implements some interfaces and standard functionalities, which are
             reward, done, info
         4) an action space getter
         5) a current observation getter
+        6) a preprocess method that typically stacks frames into current state
         
     II. common functions and statistics:
         1) a global frame counter and resetter method
@@ -20,7 +22,6 @@ regulates and implements some interfaces and standard functionalities, which are
             stacked observation
         5) a frame-per-ation setter that specifies how many frames that current action 
             should repeat
-        6) a single life mode setter
         7) an episodic initialization mode setter
         8) a tensorboard setter
         9) an episodic and per-action reward resetter and getter
@@ -33,6 +34,7 @@ if you retrieve your learning environment from other sources and taht env requir
 other than _Env (e.g. Open AI gym envrionments usually requires a wrapper as their base class), 
 in that case, you must use base metaclass _MetaEnv as your base class and make your environment 
 class code looks like this example:
+
     class AtariWrapper(gym.Wrapper, metaclass=_MetaEnv):
         def __init__(self, env):
             blahblahblah...
@@ -52,7 +54,6 @@ class Env(object):
         self._frames_stack = 1
         self._global_episodes = 0
         self._global_frames = 0
-        self._single_life = False
         self._tensorboard = None
     
     def current_state(self):
@@ -61,6 +62,9 @@ class Env(object):
     def num_actions(self):
         raise NotImplementedError()
     
+    def preprocessing(self, observation):
+        raise NotImplementedError()
+        
     def sample(self):
         raise NotImplementedError()
         
@@ -71,38 +75,39 @@ class Env(object):
         raise NotImplementedError()
         
         
-    def action_reward(self, num=None):
+    def action_reward(self, pattern=None, num=None):
         """
         [!]WARNING: should check the legitimacy of num by yourself
         """
-        if num is not None:
+        assert pattern in {None, 'set'}
+        if pattern == 'set':
             self._action_reward = num
         return self._action_reward
     
     
-    def episodic_frames(self, pattern=None, adder=1):
+    def episodic_frames(self, pattern=None, num=1):
+        assert type(num) == int and num >= 0
         if pattern == 'add':
-            assert type(adder) == int and adder >= 0
-            self._episodic_frames += adder
-        if type(pattern) == int:
-            assert pattern >= 0
-            self._episodic_frames = pattern           
+            self._episodic_frames += num
+        elif pattern == 'set':
+            self._episodic_frames = num           
         return self._episodic_frames
     
     
-    def episodic_reward(self, pattern=None, adder=None):
+    def episodic_reward(self, pattern=None, num=None):
+        """
+        [!]WARNING: should check the legitimacy of num by yourself
+        """
         if pattern == 'add':
-            """
-            [!]WARNING: should check the legitimacy of adder by yourself
-            """
-            assert adder is not None
-            self._episodic_reward += adder
-        elif pattern is not None:
-            self._episodic_reward = pattern
+            assert num is not None
+            self._episodic_reward += num
+        elif pattern == 'set':
+            self._episodic_reward = num
         return self._episodic_reward
     
     
-    def frame_action(self, pattern=None, num=None):
+    def frames_action(self, pattern=None, num=None):
+        assert pattern in {None, 'set'}
         if pattern == 'set':
             assert type(num) == int and num >= 1
             self._frames_action = num
@@ -110,43 +115,34 @@ class Env(object):
     
     
     def frames_stack(self, pattern=None, num=None):
+        assert pattern in {None, 'set'}
         if pattern == 'set':
             assert type(num) == int and num >= 1
             self._frames_stack = num
         return self._frames_stack
     
     
-    def global_frames(self, pattern=None, adder=1):
-        if pattern == 'reset':
-            self._global_frames = 0
+    def global_frames(self, pattern=None, num=1):
+        assert type(num) == int and num >= 0
         if pattern == 'add':
-            assert type(adder) == int and adder >= 0
-            self._global_frames += adder
-        if type(pattern) == int:
-            assert pattern >= 0
-            self._global_frames = pattern           
+            self._global_frames += num
+        elif pattern == 'set':
+            self._global_frames = num           
         return self._global_frames
     
     
-    def global_episodes(self, pattern=None, adder=1):
+    def global_episodes(self, pattern=None, num=1):
+        assert type(num) == int and num >= 0
         if pattern == 'add':
-            assert type(adder) == int and adder >= 0
-            self._global_episodes += adder
-        if type(pattern) == int:
-            assert pattern >= 0
-            self._global_episodes = pattern           
+            self._global_episodes += num
+        elif pattern == 'set':
+            self._global_episodes = num           
         return self._global_episodes 
-    
-    
-    def single_life(self, flag=None):
-        if flag is not None:
-            self._single_life = flag
-        return self._single_life
-    
+
     
     def tensorboard(self, obj=None):
         """
-        [!]WARNING: should check the legitimacy of adder by yourself
+        [!]WARNING: should check the legitimacy of num by yourself
         """
         if obj is not None:
             self._tensorboard = obj
@@ -163,7 +159,7 @@ class Env(object):
             self._global_frames = 0
        
     
-    def reset_all(self):
+    def reinitialize(self):
         self.__init__()
         
 
@@ -184,11 +180,11 @@ def _get_attrs_setter(target):
                 setattr(target, attrs, values)            
     return _attrs_setter
 
+
 def _get_attr_setter(target):
     def _attr_setter(attr, value):
         if not hasattr(target, attr):
             setattr(target, attr, value)
-#             print('set [%s]' % attr)
     return _attr_setter
         
     
@@ -196,10 +192,10 @@ class MetaEnv(type):
     """
     base metaclass for third-party rl environment
     
-    bases[0] is supposed to be the direct base class for the env and this metaclass will form the 
-    part which the base class of the env does not cover, and will keep other settings for base 
-    class to decide, if base class has the same attributes as the this metaclass has, base class 
-    will OVERRIDE metaclass attribution under these circumstances
+    bases[0](i.e. instance.__mro__[1]) is supposed to be the direct base class for the env and 
+    this metaclass will form the part which the base class of the env does not cover, and will 
+    keep other settings for base class to decide, if base class has the same attributes as the 
+    this metaclass has, base class will **OVERRIDE** metaclass attribution in that case
     
     """
     def __new__(self, name, bases, fields):
@@ -207,9 +203,10 @@ class MetaEnv(type):
         """
         [!]WARNING: should check if this condition(direct_base = bases[0]) holds 
         """
-        direct_base = bases[0]
+        # get the base class of the instance
+        direct_base = instance.__mro__[1]
         attr_setter = _get_attr_setter(direct_base)
-        # get base 
+        # get base environment instance
         base_env = Env()
         # set base value attributions
         base_attrs, base_vals = zip(*base_env.__dict__.items())
@@ -221,7 +218,7 @@ class MetaEnv(type):
         # have to wrap base_func_vals as an Iterable to avoid missing values
         base_func_vals = tuple(getattr(base_env, attr) for attr in base_func_names)
         # have to wrap map as an Iterable to help the map func to work
-        x = tuple(map(attr_setter, base_func_names, base_func_vals))
+        tuple(map(attr_setter, base_func_names, base_func_vals))
         
         return instance
     

@@ -5,16 +5,14 @@ import torch.nn.functional as F
 
 class Q_Network(nn.Module):
     """
-    build 2-D obervation Q-network, the same as in DeepMind DQN paper
+    build a 2-D observation Q-network for DQN and its variants
     
-    input_size: a 3-D tuple (or equivalent Iterable) indicating the size of input
-    
-    num_actions: corresponding to the size of output
-    
-    backbone: a pytorch network, if not specified, using original DQN instead
-    
-    replace_fc: the name of last linear (i.e. 'fc' or 'last_linear'), if not 
-    specified, using backbone's last output layer instead.
+    Args:
+        input_size: a 3-D tuple (or equivalent Iterable) indicating the size of input
+        num_actions: corresponding to the size of output
+        backbone: a pytorch network, if not specified, using original DQN instead
+        replace_fc: the name of last linear(i.e. 'fc' or 'last_linear'), if not 
+                        specified, using backbone's last output layer instead.
     """
     def __init__(self, input_size=None, num_actions=None, backbone=None, replace_fc=None):
         super(Q_Network, self).__init__()
@@ -59,18 +57,18 @@ class Q_Network(nn.Module):
             
 class _Original_DQN(nn.Module):
     """
-    this is the Q-network used in the original DQN paper
+    this is the Q-network used in the original DeepMind DQN paper: Human-level control through 
+        deep reinforcement learning (https://www.nature.com/articles/nature14236)
     
-    input_size: a 3-d tuple (or equivalent Iterable) indicating the size of input
-    
-    num_actions: corresponding to the size of output
+    Args:
+        input_size: a 3-D tuple (or equivalent Iterable) indicating the size of input
+        num_actions: corresponding to the size of output
     """
     def __init__(self, input_size, num_actions):
         super(_Original_DQN, self).__init__()
-        
         self.input_size = input_size
         self.num_actions = num_actions
-
+    
         self.conv1 = nn.Conv2d(self.input_size[0], 32, kernel_size=8, stride=4)
         self.conv2 = nn.Conv2d(32, 64, kernel_size=4, stride=2)
         self.conv3 = nn.Conv2d(64, 64, kernel_size=3, stride=1)
