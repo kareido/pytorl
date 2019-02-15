@@ -14,3 +14,6 @@ __pycache__/
 
 # train log
 log.txt
+
+# tensorboard files
+*.local

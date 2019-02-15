@@ -33,7 +33,7 @@ class _AtariWrapper(gym.Wrapper, metaclass=MetaEnv):
     def __init__(self, env, tsfm, render):
         super(_AtariWrapper, self).__init__(env)
         self.tsfm = tsfm
-        self.render = render
+        self.render_flag = render
         # frame initialization
         self.episodic_init_action = 'RANDOM'
         self.episodic_init_frames = 0
@@ -116,7 +116,7 @@ class _AtariWrapper(gym.Wrapper, metaclass=MetaEnv):
         self.reset_statistics('episodic')
         self.buffer.clear()
         self.prev_observ = self.env.reset()
-        if self.render: self.render()
+        if self.render_flag: self.render()
         init_frames = max(self.episodic_init_frames, self.buffer.maxlen - 1)
         if init_frames > 0:
             get_action = self._get_init_action(self.episodic_init_action)
@@ -137,7 +137,7 @@ class _AtariWrapper(gym.Wrapper, metaclass=MetaEnv):
             self.curr_observ, reward, done, info = self.env.step(action)
             self._feed_buffer()
             _action_reward += reward
-            if self.render: self.render()
+            if self.render_flag: self.render()
             if done: break
         _action_reward = np.sign(_action_reward)
         if self.single_life:
