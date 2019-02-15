@@ -6,17 +6,17 @@ solver:
     gamma: 0.99
     episodes: 4000
     frame_stack: 4
-    learn_freq: 4
+    learn_freq: 1
     target:
         update_mode: framed  # episodic, framed
         update_freq: 1000
-    loss: mse_loss
-    optimizer: Adam
+    loss: smooth_l1_loss
+    optimizer: RMSprop 
 greedy:
     mode: framed  # episodic, framed
     start: 1
     end: 0.02
-    steps: 25600
+    steps: 102400
     delay: 40000
     decay: linear  # linear, exponential
 replay:

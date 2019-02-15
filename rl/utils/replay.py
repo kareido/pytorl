@@ -33,7 +33,7 @@ def _get_namedtuple(obj_type):
 
 
 class NaiveReplay(_ExpReplay):
-    def __init__(self, capacity=None, obj_format='std_DQN'):
+    def __init__(self, obj_format, capacity=None):
         super(NaiveReplay, self).__init__(capacity)
         self.obj_format = obj_format
         self.obj_type = _get_namedtuple(self.obj_format)

@@ -18,7 +18,7 @@ class _AtariWrapper(gym.Wrapper, metaclass=MetaEnv):
         5) misc methods and other methods required to be implemented by metaclass MetaEnv
 
     example:
-        self.resize = T.Compose([T.ToPILImage(),
+        resize = T.Compose([T.ToPILImage(),
                         T.Grayscale(1), 
                         T.Resize((84, 84)), 
                         T.ToTensor()])
@@ -38,7 +38,7 @@ class _AtariWrapper(gym.Wrapper, metaclass=MetaEnv):
         self.episodic_init_action = 'RANDOM'
         self.episodic_init_frames = 0
         self.prev_observ = None
-        swlf.curr_observ = None
+        self.curr_observ = None
         self.curr_state = None
         # frame stack buffer
         self.buffer = deque([], maxlen=1)
@@ -58,7 +58,7 @@ class _AtariWrapper(gym.Wrapper, metaclass=MetaEnv):
         
         
     def set_episodic_init(self, op='RANDOM', frames=1):
-        assert type(steps) == int and steps >= 1
+        assert type(frames) == int and frames >= 1
         if op is None: op = 'RANDOM'
         self.episodic_init_action = op
         self.episodic_init_frames = frames
@@ -75,15 +75,16 @@ class _AtariWrapper(gym.Wrapper, metaclass=MetaEnv):
     def _feed_buffer(self):
         # deflickering previous and current observation
         deflickered_observ = np.maximum(self.prev_observ, self.curr_observ)
-        # must copy the observation to avoid shallow copy
-        self.buffer.append(deflickered_observ.copy())
+        # let buffer save transformed 2-D frame
+        encoded_frame = self.tsfm(deflickered_observ)
+        self.buffer.append(encoded_frame)
         self.prev_observ = self.curr_observ
     
     
     def _preprocessing(self):
         assert len(self.buffer) == self.frames_stack() == self.buffer.maxlen
-        observs_tensor = self.tsfm(torch.tensor(self.buffer))
-        return observs_tensor
+        observs_tensor = torch.cat(tuple(self.buffer))
+        return observs_tensor.unsqueeze(0)
         
         
     def sample(self):
@@ -91,7 +92,7 @@ class _AtariWrapper(gym.Wrapper, metaclass=MetaEnv):
     
     
     def state(self):
-        self.curr_state = self._preprocessing(self)
+        self.curr_state = self._preprocessing()
         return self.curr_state
     
     
@@ -118,11 +119,11 @@ class _AtariWrapper(gym.Wrapper, metaclass=MetaEnv):
         if self.render: self.render()
         init_frames = max(self.episodic_init_frames, self.buffer.maxlen - 1)
         if init_frames > 0:
-            action = self._get_init_action(self.episodic_init_action)
+            get_action = self._get_init_action(self.episodic_init_action)
             for _ in range(init_frames):
-                self.curr_observ, reward, done, _ = self.env.step(action())
+                self.curr_observ, reward, done, _ = self.env.step(get_action())
                 if done: print('EXCEPTION: done received during reset()', flush=True)
-                self._feed_buffer()    
+                self._feed_buffer()
         # statistics
         self.global_frames('add', init_frames + 1)
         self.global_episodes('add')
@@ -131,17 +132,24 @@ class _AtariWrapper(gym.Wrapper, metaclass=MetaEnv):
         
     def step(self, action):
         if isinstance(action, torch.Tensor): action = action.tolist()
-        action_reward = 0
+        _action_reward = 0
         for _ in range(self.frames_action()):
-            self.curr_observ, reward, done, info = self.env.step(action())
+            self.curr_observ, reward, done, info = self.env.step(action)
             self._feed_buffer()
-            action_reward += reward
+            _action_reward += reward
             if self.render: self.render()
             if done: break
+        _action_reward = np.sign(_action_reward)
+        if self.single_life:
+            lives = self.env.unwrapped.ale.lives()
+            if lives < self.lives and lives > 0:
+                done = True
+            self.lives = lives
         
+        self.global_frames('add', self.frames_action())
         self.episodic_frames('add', self.frames_action())
-        self.episodic_reward('add', action_reward)
-        self.action_reward('set', action_reward)
+        self.episodic_reward('add', _action_reward)
+        self.action_reward('set', _action_reward)
         return self.curr_observ, self.action_reward(), done, info
         
     

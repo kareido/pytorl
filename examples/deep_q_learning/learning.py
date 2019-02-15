@@ -3,13 +3,13 @@ import random
 import time
 from itertools import count
 import numpy as np
+from PIL import Image
 import torch
 import torchvision.transforms as T
 from rl.agents import DQN_Agent
-from rl.envs import gym_env_maker
+from rl.envs import make_atari_env
 from rl.networks import Q_Network
 import rl.utils as utils
-
 
 """
 controller for when to update target
@@ -74,17 +74,17 @@ def main():
     # ENVIRONMENT
     resize = T.Compose([T.ToPILImage(),
                     T.Grayscale(1),
-                    T.Resize((84, 84)),
+                    T.Resize((84, 84), interpolation=Image.CUBIC),
                     T.ToTensor()])
-    env = gym_env_maker(config.solver.env, resize,
+    env = make_atari_env(config.solver.env, resize,
                         render=config.record.render)
     # seeding
     env.seed(seed)
-    env.set_frame_stack(num_frames=frame_stack, stack_init_mode='noop')
-    env.set_single_life_mode(True)
-    # equivalent to update q-net per skip + 1 frames
-    env.set_frameskip_mode(skip=3, discount=config.solver.gamma)
-    num_actions = env.action_space.n
+    env.set_episodic_init('FIRE')
+    env.set_frames_stack(frame_stack)
+    env.set_single_life(True)
+    env.set_frames_action(4)
+    num_actions = env.num_actions()
 
     ################################################################
     # AGENT
@@ -97,8 +97,7 @@ def main():
     loss_func = cfg_reader.get_loss_func(config.solver.loss)
     optimizer_func = cfg_reader.get_optimizer_func(config.solver.optimizer)
     lr = config.solver.lr
-    replay = utils.NaiveReplay(capacity=config.replay.capacity,
-                                obj_format='std_DQN')
+    replay = utils.NaiveReplay(obj_format='std_DQN', capacity=config.replay.capacity)
 
     agent = DQN_Agent(device = device,
                       q_net = q_net,
@@ -113,7 +112,7 @@ def main():
                             min_replay=config.replay.init_num,
                             learn_freq=config.solver.learn_freq,
                             tensorboard=tensorboard,
-                            counter=env.get_global_steps)
+                            counter=env.global_frames)
 
     ################################################################
     # FUNCTION SUPPORTS
@@ -145,29 +144,31 @@ def main():
     ################################################################
     # TRAINING
     for ep in range(num_episodes):
-        env.reset(init_mode='fire')
+        env.reset()
         # initial random action
         action = env.sample()
-        curr_state, _, done, _ = env.step(action)
+        curr_observ, _, done, _ = env.step(action)
+        curr_state = env.state().clone()
         for cycle in count():
-            thres = get_thres(ep, env.total_step_count)
-            action = agent.next_action(thres, env.sample(), curr_input=curr_state)
+            thres = get_thres(ep, env.global_frames())
+            action = agent.next_action(thres, env.sample(), curr_input=env.state())
             if not done:
-                next_state, reward, done, _ = env.step(action)
-                exp = agent.replay.form_obj(curr_state, action.clone(),
-                                            next_state, reward.clone())
+                next_observ, reward, done, _ = env.step(action)
+                next_state = env.state().clone()
+                exp = agent.replay.form_obj(curr_state, action,
+                                            next_state, reward)
                 agent.replay.push(exp)
                 # recording via tensorboard
-                tensorboard.add_scalar('step/reward', reward, env.total_step_count)
-                tensorboard.add_scalar('step/thres', thres, env.total_step_count)
+                tensorboard.add_scalar('step/reward', env.action_reward(), env.global_frames())
+                tensorboard.add_scalar('step/thres', thres, env.global_frames())
                 tensorboard.add_scalar('replay/size', len(agent.replay),
-                                                           env.total_step_count)
+                                                           env.global_frames())
             else: break
 
-            curr_state = next_state.clone()
+            curr_state = next_state
             agent.optimize()
             # potentially update the target network
-            framed_update_target(env.total_step_count)
+            framed_update_target(env.global_frames())
 
         # potentially update the target network
         episodic_update_target(ep)
@@ -175,10 +176,10 @@ def main():
         print(time.strftime('[%Y-%m-%d-%H:%M:%S]:'),
               'episode [%s/%s], ep-reward [%s], '
               'eps-thres [%.2f], frames [%s]' % (
-              ep + 1, num_episodes, env.episodic_reward.tolist(),
-              thres, env.total_step_count), flush=True)
+              ep + 1, num_episodes, env.episodic_reward(),
+              thres, env.global_frames()), flush=True)
         # recording via tensorboard
-        tensorboard.add_scalar('episode/reward', env.episodic_reward.item(), ep + 1)
+        tensorboard.add_scalar('episode/reward', env.episodic_reward(), ep + 1)
         tensorboard.add_scalar('episode/thres', thres, ep + 1)
 
         if ep % config.record.save_freq == 0:

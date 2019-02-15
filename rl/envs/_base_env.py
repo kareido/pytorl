@@ -56,7 +56,7 @@ class Env(object):
     def __init__(self):
         self._action_reward = None
         self._episodic_frames = 0
-        self._episodic_reward = None
+        self._episodic_reward = 0
         self._frames_action = 1
         self._frames_stack = 1
         self._global_episodes = 0
@@ -157,7 +157,7 @@ class Env(object):
         assert mode in {'all', 'episodic'}
         self._action_reward = None
         self._episodic_frames = 0
-        self._episodic_reward = None
+        self._episodic_reward = 0
         if mode == 'all':
             self._global_episodes = 0
             self._global_frames = 0

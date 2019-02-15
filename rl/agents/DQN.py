@@ -65,7 +65,7 @@ class DQN_Agent(Agent):
                 return curr_q_val.argmax(1).view(1, 1).to('cpu')
         else:
             # guarantee the return value is legal
-            return rand_act.view(1, 1).to('cpu')
+            return torch.tensor(rand_act).view(1, 1).to('cpu')
         
         
     """
@@ -95,6 +95,7 @@ class DQN_Agent(Agent):
 #             print((predicted_q_values - expected_q_values.unsqueeze(1)).sum(), flush=True)
             # compute loss
             q_net_loss = self.loss(predicted_q_values, expected_q_values.unsqueeze(1))
+#             print('shapes:', predicted_q_values.shape, targeted_q_values.shape, expected_q_values.shape, q_net_loss.shape, flush=True)
             # optimize the model
             self.optimizer.zero_grad()
             q_net_loss.backward()
