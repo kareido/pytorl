@@ -1,6 +1,7 @@
 
 
 """
+
 this module provides base class/metaclass for creating rl environment using this base can help 
 make your environment compatible with the exsiting implementation of rl algorithms since it 
 regulates and implements some interfaces and standard functionalities, which are:
@@ -28,17 +29,24 @@ regulates and implements some interfaces and standard functionalities, which are
        10) a global reinit method
 
 if you create your own environment from scratch or you import an env from other sources and that 
-env does not require a bass class, you must use base class _Env as your base class
+env does not require a bass class, you must use base class _Env as your base class, your code 
+should be someting like this:
+
+    class MyEnv(Env):
+        def __init__(self, **args, **kwargs):
+            blahblahblah...
+        other stuff...
 
 if you retrieve your learning environment from other sources and taht env requires a base class 
 other than _Env (e.g. Open AI gym envrionments usually requires a wrapper as their base class), 
-in that case, you must use base metaclass _MetaEnv as your base class and make your environment 
-class code looks like this example:
+in that case, you must use base metaclass _MetaEnv as your base class and make your code looks 
+like this example:
 
-    class AtariWrapper(gym.Wrapper, metaclass=_MetaEnv):
+    class AtariWrapper(gym.Wrapper, metaclass=MetaEnv):
         def __init__(self, env):
             blahblahblah...
         other stuff...
+        
 """
 
 
@@ -192,10 +200,11 @@ class MetaEnv(type):
     """
     base metaclass for third-party rl environment
     
-    bases[0](i.e. instance.__mro__[1]) is supposed to be the direct base class for the env and 
-    this metaclass will form the part which the base class of the env does not cover, and will 
-    keep other settings for base class to decide, if base class has the same attributes as the 
-    this metaclass has, base class will **OVERRIDE** metaclass attribution in that case
+    bases[0](i.e. instance.__mro__[1]) is supposed to be the direct base class for third-party 
+    envirnoments and this metaclass will form the part which the base class of the env does not 
+    cover, and will keep other settings for base class to decide, if base class has the same 
+    attributes as this metaclass has, the direct base class will **OVERRIDE** metaclass 
+    attribution in that situation
     
     """
     def __new__(self, name, bases, fields):

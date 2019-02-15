@@ -14,7 +14,7 @@ class _AtariWrapper(gym.Wrapper, metaclass=MetaEnv):
            iii. stack multiple frames for neural net input.
         2) directly sample an action
         3) initialize episode (and frames stack) with noop, random, fire ops
-        4) one-life per episode mode
+        4) single-life per episode mode
         5) misc methods and other methods required to be implemented by metaclass MetaEnv
 
     example:
@@ -26,194 +26,44 @@ class _AtariWrapper(gym.Wrapper, metaclass=MetaEnv):
         agent.frame_stack('set', 4)
         agent.single_life('set', False)
 
+    another important criterion is that only convert an obj to tensor or make it downsampled iff. 
+    imminent necessay, otherwise, try not to make conversion which will confuse you latter
+    
     """
     def __init__(self, env, tsfm, render):
-        super(_CommonWrapper, self).__init__(env)
+        super(_AtariWrapper, self).__init__(env)
         self.tsfm = tsfm
         self.render = render
-        # metrics
-        self.curr_step_count = 0
-        self.total_step_count = 0
-        self.curr_reward = 0
-        self.episodic_reward = 0
-        # to make sure curr_ep == ep in main()
-        self.curr_ep = -1
-        # frame stack
-        self.num_frames = None
-        self.stack_init_mode = None
-        self.frame_stack = None
+        # frame initialization
+        self.episodic_init_action = None
+        self.episodic_init_steps = 0
+        self.buffer_init_action = None
+        # frame stack buffer
+        self.buffer = None
         # single life mode
         self.only_single_life = False
         self.lives = 0
-        # frameskip mode
-        """
-        note: this frameskip means ADDITIONAL steps taken for each 
-              action, excluding the first step of each action since
-              we must take it anyway.
-              
-        e.g. if we want 4 frame-steps per action, we should call
-             set_frameskip_mode(skip=3, discount=config.solver.gamma)
-        """
-        self.frameskip = 0
-        self.discount = 1
     
     
-    def step(self, action):
-        if isinstance(action, torch.Tensor):
-            action = action.tolist()
-        if self.frame_stack is not None:
-            # check if frame stack is cold
-            if len(self.frame_stack) < self.num_frames - 1:
-                self._init_episode(
-                    mode=self.stack_init_mode, 
-                    steps=self.num_frames - len(self.frame_stack) - 1
-                )
-            else:
-                self.frame_stack.popleft()
+    def set_frames_action(self, num=1):
+        self.frames_action('set', num)
         
-        # MUST reset curr_reward before self.env.step(action)
-        self.curr_reward = 0
+    def set_frames_stack(self, num=1, op='NOOP'):
+        self.frames_stack('set', num)
+        self.buffer = deque([], maxlen=num)
+        self.buffer_init_action = op
         
-        for _ in range(self.frameskip + 1):
-            ob, reward, done, info = self.env.step(action)
-            # accumulate curr_reward
-            self.curr_reward *= self.discount
-            self.curr_reward += reward
-            if self.render: self.env.render()
-            if done: break
-        ob = self.transform_ob(ob)
-        # clipping reward
-        self.curr_reward = self.reward(self.curr_reward)
-        # metrics
-        self.episodic_reward += self.curr_reward
-        self.curr_step_count += self.frameskip + 1
-        self.total_step_count += self.frameskip + 1
-        
-        if self.frame_stack is not None:
-            self.frame_stack.append(ob)
-            assert len(self.frame_stack) == self.num_frames
-            ret_ob = self.transform_ob(self.frame_stack)
-            
-        if self.only_single_life:
-            lives = self.env.unwrapped.ale.lives()
-            if lives < self.lives and lives > 0:
-                done = True
-            self.lives = lives
-            
-        return ret_ob.unsqueeze(0), self.curr_reward, done, info
-
-    
-    def reset(self, init_mode=None, init_steps=1):
-        # reset episodic metrics
-        self.episodic_reward = 0
-        self.curr_step_count = 0
-        self.env.reset()
-        # update curr_ep
-        self.curr_ep += 1
-        if self.frame_stack is not None:
-            self.frame_stack.clear()
-        if init_mode:
-            self._init_episode(mode = init_mode, 
-                          steps = init_steps)
-        return self.transform_ob()
-
-    
-    def transform_ob(self, ob=None):
-        if ob is None:
-            ob = self.env.render(mode='rgb_array')
-        if isinstance(ob, deque):
-            ob_tensor = torch.cat(tuple(ob))
-            return ob_tensor
-        
-        elif isinstance(ob, (list, tuple)):
-            ob_tensor = torch.cat(ob)
-            return ob_tensor
-        
-        elif isinstance(ob, (np.ndarray,)):
-            ob_tensor = torch.tensor(ob)
-        elif isinstance(ob, (torch.Tensor,)):
-            ob_tensor = ob.to('cpu')
-        else:
-            raise ValueError('unsupported transform_ob type')
-        return self.tsfm(ob_tensor)
+    def set_episodic_init(self, op='FIRE', steps=1):
+        self.episodic_init_action = op
+        self.episodic_init_steps = steps
     
     
-    # using clipped reward
-    def reward(self, reward):
-#         print(np.sign(reward), flush=True)
-        return torch.tensor(np.sign(reward))
-
-    
-    def sample(self):
-        return torch.tensor(self.action_space.sample())
     
     
-    def set_frame_stack(self, num_frames=4, stack_init_mode='noop'):
-        assert type(num_frames) == int
-        if num_frames <= 1:
-            raise ValueError('invalid num_frames specified')
-        if num_frames == 1:
-            print('warning: agent only has current '
-                  'transform_ob (num_frames = 1)', flush=True)
-            return
-        self.num_frames = num_frames
-        self.stack_init_mode = stack_init_mode
-        self.frame_stack = deque([])
-        
-        
-    def _init_episode(self, mode, steps):
-        assert mode in {'random', 'noop', 'fire'}
-        assert steps >= 1, 'illegal steps'
-        if mode == 'random':
-            action = self.sample()
-        elif mode == 'noop':
-            assert self.unwrapped.get_action_meanings()[0] == 'NOOP'
-            action = 0
-        elif mode == 'fire':
-            assert self.unwrapped.get_action_meanings()[1] == 'FIRE'
-            action = 1
-            
-        for _ in range(steps):
-            ob, _, done, _ = self.env.step(action)
-            ob = self.transform_ob(ob)
-            if self.frame_stack is not None:
-                self.frame_stack.append(ob)
-                if done:
-                    while len(self.frame_stack) < steps:
-                        self.frame_stack.append(ob)
-                    break
-
-        if done:
-            print('warning: already done '
-                  'during initializing episode', flush=True)
-        return done
-                
-        
-    def set_single_life_mode(self, status=True):
-        self.only_single_life = status
-        if status:
-            print('SINGLE LIFE MODE: [ON]', flush=True)
-        else:
-            print('SINGLE LIFE MODE: [OFF]', flush=True)
-            
     
-    def set_frameskip_mode(self, skip=0, discount=1):
-        if skip:
-            self.frameskip = skip
-            self.discount = discount
-            print('FRAMESKIP: [%s] FRAMES PER UPDATE' % (
-                                skip + 1), flush=True)
-        else:
-            self.frameskip = 0
-            print('FRAMESKIP MODE: [OFF]', flush=True)
-            
-            
-    def get_global_steps(self):
-        return self.total_step_count
-
 
 def make_atari_env(env_name, tsfm, render=False):
     orig_env = gym.make(env_name)
-    wrapped_env = _GymWrapper(orig_env, tsfm, render)
+    wrapped_env = _AtariWrapper(orig_env, tsfm, render)
     return wrapped_env
 
