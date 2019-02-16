@@ -1,0 +1,30 @@
+seed: 123
+solver:
+    env: MountainCar-v0
+    lr: 0.00025
+    gamma: 0.99
+    episodes: 10000
+    frames_stack: 4
+    learn_freq: 1
+    target:
+        update_mode: framed  # episodic, framed
+        update_freq: 20000
+    loss: smooth_l1_loss
+    optimizer: RMSprop 
+greedy:
+    mode: framed  # episodic, framed
+    start: 1
+    end: 0.1
+    steps: 1000000
+    delay: 200000
+    decay: linear  # linear, exponential
+replay:
+    capacity: 1000000
+    init_num: 50000
+    sample_batch: 32
+record:
+    save_freq: 100
+    save_path: ./checkpoint
+    render: False
+    debug: False
+    

@@ -1,10 +1,12 @@
 prefix='rl'
-alg='DEEP Q-LEARNING ALGORITHM'
+alg='ATARI DEEP Q-LEARNING'
 name=$1
 partition=$2
 
+cd ..
+
 srun_cmd="srun -J ${name} -p ${partition} --gres gpu:1"
-py_cmd='python learning.py 2>&1 | tee -a ../log.txt'
+py_cmd='python atari_learning.py 2>&1 | tee -a ../log.txt'
 
 echo '________________________________________________________________________________'
 echo -e "\e[42mSTARTING\e[0m: \e[43m${alg}\e[0m"

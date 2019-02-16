@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-import rl.utils as util
+import rl.utils as utils
 
 
 """
@@ -12,13 +12,38 @@ this base agent contains:
 
 class Agent:
     def __init__(self):
-        raise NotImplementedError('cannot initialize base agent')
+        self._global_timesteps = 0
+        self._optimize_timer = 0
+        self._tensorboard = None
     
     def save_pth(self, obj, path, filename=None, obj_name=None):
-        util.save_pth(obj, path, filename=filename, obj_name=obj_name)
+        utils.save_pth(obj, path, filename=filename, obj_name=obj_name)
         
     def load_pth(self, path, filename=None, obj_name=None):
-        util.load_pth(path, filename=filename, obj_name=obj_name)
+        utils.load_pth(path, filename=filename, obj_name=obj_name)
         
-    def add_scalar(self, tensorboard):
-        raise NotImplementedError('tensorboard currently not implemented')
+        
+    def global_timesteps(self, pattern=None, num=1):
+        assert type(num) == int and num >= 0
+        if pattern == 'add':
+            self._global_timesteps += num
+        elif pattern == 'set':
+            self._global_timesteps = num           
+        return self._global_timesteps 
+
+    def optimize_timer(self, pattern=None, num=1):
+        assert type(num) == int and num >= 0
+        if pattern == 'add':
+            self._optimize_timer += num
+        elif pattern == 'set':
+            self._optimize_timer = num           
+        return self._optimize_timer 
+        
+        
+    def set_tensorboard(self, obj=None):
+        """
+        [!]WARNING: should check the legitimacy of num by yourself
+        """
+        if obj is not None:
+            self._tensorboard = obj
+        return self._tensorboard

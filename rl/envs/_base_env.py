@@ -74,7 +74,7 @@ class Env(object):
         
     def reset(self):
         raise NotImplementedError()
-        
+    
     def step(self, action):
         raise NotImplementedError()
         
@@ -94,7 +94,7 @@ class Env(object):
         if pattern == 'add':
             self._episodic_frames += num
         elif pattern == 'set':
-            self._episodic_frames = num           
+            self._episodic_frames = num
         return self._episodic_frames
     
     
@@ -161,11 +161,7 @@ class Env(object):
         if mode == 'all':
             self._global_episodes = 0
             self._global_frames = 0
-       
-    
-    def reinitialize(self):
-        self.__init__()
-        
+            
 
         
 """
@@ -199,8 +195,8 @@ class MetaEnv(type):
     bases[0](i.e. instance.__mro__[1]) is supposed to be the direct base class for third-party 
     envirnoments and this metaclass will form the part which the base class of the env does not 
     cover, and will keep other settings for base class to decide, if base class has the same 
-    attributes as this metaclass has, the direct base class will **OVERRIDE** metaclass 
-    attribution in that situation
+    attributes as this metaclass has, the direct base class will **OVERRIDE** corresponding 
+    metaclass attributes in that situation
     
     """
     def __new__(self, name, bases, fields):
@@ -213,7 +209,7 @@ class MetaEnv(type):
         attr_setter = _get_attr_setter(direct_base)
         # get base environment instance
         base_env = Env()
-        # set base value attributions
+        # set base value attributes
         base_attrs, base_vals = zip(*base_env.__dict__.items())
         # have to wrap map as an Iterable to help the map func to work
         tuple(map(attr_setter, base_attrs, base_vals))

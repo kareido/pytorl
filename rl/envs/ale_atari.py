@@ -39,6 +39,7 @@ class _AtariWrapper(gym.Wrapper, metaclass=MetaEnv):
         # frame initialization
         self.episodic_init_action = 'RANDOM'
         self.episodic_init_frames = 0
+        # state and status
         self.prev_observ = None
         self.curr_observ = None
         self.curr_state = None
@@ -69,7 +70,7 @@ class _AtariWrapper(gym.Wrapper, metaclass=MetaEnv):
     def set_single_life(self, flag=True):
         self.single_life = flag
         
-        
+    
     def num_actions(self):
         return self.action_space.n
     
@@ -92,11 +93,9 @@ class _AtariWrapper(gym.Wrapper, metaclass=MetaEnv):
     def sample(self):
         return self.action_space.sample()
     
-    
     def state(self):
         self.curr_state = self._preprocessing()
         return self.curr_state
-    
     
     def _get_init_action(self, op):
         assert op in {'RANDOM', 'NOOP', 'FIRE'}
@@ -104,12 +103,10 @@ class _AtariWrapper(gym.Wrapper, metaclass=MetaEnv):
             wrapper = self.sample
         elif op == 'NOOP':
             assert self.unwrapped.get_action_meanings()[0] == 'NOOP'
-            def wrapper():
-                return 0
+            wrapper = lambda: 0
         elif op == 'FIRE':
             assert self.unwrapped.get_action_meanings()[1] == 'FIRE'
-            def wrapper():
-                return 1
+            wrapper = lambda: 1
         return wrapper
     
     
@@ -119,18 +116,27 @@ class _AtariWrapper(gym.Wrapper, metaclass=MetaEnv):
         self.buffer.clear()
         self.prev_observ = self.env.reset()
         if self.render_flag: self.render()
-        init_frames = max(self.episodic_init_frames, self.buffer.maxlen - 1)
-        if init_frames > 0:
-            get_action = self._get_init_action(self.episodic_init_action)
-            for _ in range(init_frames):
-                self.curr_observ, reward, done, _ = self.env.step(get_action())
-                if done: print('EXCEPTION: done received during reset()', flush=True)
-                self._feed_buffer()
+        init_frames = max(self.episodic_init_frames, self.buffer.maxlen)
+        assert init_frames > 0, 'minimum buffer length should be 1'
+        get_action = self._get_init_action(self.episodic_init_action)
+        for _ in range(init_frames):
+            self.curr_observ, reward, done, _ = self.env.step(get_action())
+            if done: print('EXCEPTION: done received during reset()', flush=True)
+            self._feed_buffer()
         # statistics
         self.global_frames('add', init_frames + 1)
         self.global_episodes('add')
         self.episodic_frames('add', init_frames + 1)
-
+        
+        
+    def refresh(self):
+        # state and status
+        self.prev_observ = None
+        self.curr_observ = None
+        self.curr_state = None
+        # frame stack buffer
+        self.buffer = deque([], maxlen=self.frames_stack())
+        self.reset_statistics('all')
         
     def step(self, action):
         if isinstance(action, torch.Tensor): action = action.item()

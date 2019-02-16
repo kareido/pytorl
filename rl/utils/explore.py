@@ -1,7 +1,30 @@
 import math
 
 
-def get_epsilon_greedy_func(eps_start, 
+def framed_eps_greedy_func(eps_start=1, eps_end=0.02, num_decays=100000, 
+                           global_frames_func=lambda: 1):
+    """
+    framed and linear decay of greedy threshold
+    
+    Args:
+        counter_func: should be a  callable counter, someting like env.global_frames
+    """
+    assert num_decays >= 1 and type(num_decays) == int
+    decay_rate = (eps_start - eps_end) / num_decays
+    
+    def _result():
+        if global_frames_func() >= num_decays: return eps_end
+        return eps_start - decay_rate * global_frames_func()
+    
+    return _result
+
+
+""" [!]DEPRECATED
+this method was too complicated so it got discarded, besides, I found nowhere to use exponential
+epsilon greedy decay.
+DO NOT USE IT
+"""
+def _deprecated_get_epsilon_greedy_func(eps_start, 
                             eps_end,  
                             steps, 
                             delay = 0, 
@@ -29,5 +52,3 @@ def get_epsilon_greedy_func(eps_start,
             return eps_start - curr_num * decay_rate
     
     return ret_func
-
-

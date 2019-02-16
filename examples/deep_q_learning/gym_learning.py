@@ -55,7 +55,7 @@ def main():
 
     ################################################################
     # CONFIG
-    cfg_reader = utils.ConfigReader()
+    cfg_reader = utils.ConfigReader(default='run_proj/atari_config.yaml')
     config = cfg_reader.get_config()
     seed = config.seed
     num_episodes = config.solver.episodes
