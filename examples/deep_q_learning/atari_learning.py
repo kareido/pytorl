@@ -4,10 +4,10 @@ import time
 import numpy as np
 import torch
 import torchvision.transforms as T
-from rl.agents import DQN_Agent
-from rl.envs import make_atari_env, make_ctrl_env
-from rl.networks import Q_Network, Q_MLP
-import rl.utils as utils
+from pytorl.agents import DQN_Agent
+from pytorl.envs import make_atari_env, make_ctrl_env
+from pytorl.networks import Q_Network, Q_MLP
+import pytorl.utils as utils
 
 os.environ.setdefault('run_name', 'default')
 
@@ -109,7 +109,7 @@ def main():
     ################################################################
     # OBSERVING
     # setting up initial random observations and replays during this session
-    print('now about to setup randomized [%s] required initial replays...' % 
+    print('now about to setup randomized [%s] required initial experience replay...' % 
               agent.replay.init_size, flush=True)
     while True:
         env.reset()
@@ -123,7 +123,7 @@ def main():
             curr_state = next_state
             
         print(time.strftime('[%Y-%m-%d-%H:%M:%S'), '%s]:' % os.environ['run_name'], 
-              'initializing replays progressing [%s/%s]' % (
+              'initializing experience replay progressing [%s/%s]' % (
               len(agent.replay), agent.replay.init_size), flush=True)
         if not done: break
         # save final action into reply buffer
@@ -131,7 +131,7 @@ def main():
         agent.replay.push(exp)
 
     print(time.strftime('[%Y-%m-%d-%H:%M:%S'), '%s]:' % os.environ['run_name'], 
-          'initializing replays accomplished [%s/%s]' % (
+          'experience replay initialization completed [%s/%s]' % (
           len(agent.replay), agent.replay.init_size), flush=True)
     
     env.refresh()

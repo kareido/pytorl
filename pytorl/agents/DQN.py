@@ -59,7 +59,7 @@ class DQN_Agent(Agent):
         self.replay.clear()
         self.set_device()
         self.global_timesteps('set', 0)
-        self.optimizer_timer('set', 0)
+        self.optimize_timer('set', 0)
         for name, params in self.q_net.named_parameters():
             if 'bias' in name:
                 # to avoid 'Fan in and fan out can not be computed for tensor with fewer 
@@ -128,7 +128,7 @@ class DQN_Agent(Agent):
         clip_grad_value_(self.q_net.parameters(), 1)
         self.optimizer.step()
         # update target network
-        if self.global_timesteps() % self.update_target_freq != 0:
+        if self.global_timesteps() % self.update_target_freq == 0:
             self.update_target()
         # tensorboard recording
         if self._tensorboard is not None:

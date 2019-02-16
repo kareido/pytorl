@@ -1,50 +1,15 @@
 import os
 import random
 import time
-from itertools import count
 import numpy as np
-from PIL import Image
 import torch
 import torchvision.transforms as T
-from rl.agents import DQN_Agent
-from rl.envs import make_atari_env, make_ctrl_env
-from rl.networks import Q_Network, Q_MLP
-import rl.utils as utils
-
+from pytorl.agents import DQN_Agent
+from pytorl.envs import make_atari_env, make_ctrl_env
+from pytorl.networks import Q_Network, Q_MLP
+import pytorl.utils as utils
 
 os.environ.setdefault('run_name', 'default')
-
-
-"""
-controller for when to update target
-"""
-def update_target_controller(agent, freq, mode, cfg_mode, debug=False):
-    assert mode in {'episodic', 'framed'}
-    assert cfg_mode in {'episodic', 'framed'}
-    def _controller(num):
-        if mode == cfg_mode and num % freq == 0:
-            agent.update_target()
-            if debug:
-                print('target network updated at %s [%s]' % (
-                        mode, num), flush=True)
-    return _controller
-
-
-def thres_controller(start, end, steps, delay, decay, mode, num_episodes):
-    assert mode in {'episodic', 'framed'}
-    if not steps:
-        if mode == 'framed':
-            raise ValueError('steps must be specified under framed mode')
-        steps = num_episodes
-    func = utils.get_epsilon_greedy_func(eps_start=start, eps_end=end,
-                                     delay=delay, steps=steps, decay=decay)
-    if mode == 'episodic':
-        def _controller(ep, frame):
-            return func(ep)
-    else:
-        def _controller(ep, frame):
-            return func(frame)
-    return _controller
 
 
 def main():
@@ -55,18 +20,9 @@ def main():
 
     ################################################################
     # CONFIG
-    cfg_reader = utils.ConfigReader(default='run_proj/atari_config.yaml')
+    cfg_reader = utils.ConfigReader(default='run_project/atari_config.yaml')
     config = cfg_reader.get_config()
-    seed = config.seed
-    num_episodes = config.solver.episodes
-    frame_stack = config.solver.frame_stack
-    batch_size = config.replay.sample_batch
-
-    # seeding
-    np.random.seed(seed)
-    random.seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.manual_seed(seed)
+    seed, num_episodes = config.seed, config.solver.episodes
 
     ################################################################
     # RECORDER
@@ -75,137 +31,117 @@ def main():
     tensorboard.add_textfile('config', cfg_reader.config_path)
 
     ################################################################
-#     ATARI ENVIRONMENT
-    resize = T.Compose([T.ToPILImage(),
-                    T.Grayscale(1),
-                    T.Resize((84, 84), interpolation=Image.CUBIC),
-                    T.ToTensor()])
-    env = make_atari_env(config.solver.env, resize,
-                        render=config.record.render)
+    # CLASSIC CONTROL ENVIRONMENT
+    env = make_ctrl_env(config.solver.env, render=config.record.render)
     # seeding
     env.seed(seed)
-    env.set_episodic_init('FIRE')
-    env.set_frames_stack(frame_stack)
-    env.set_single_life(True)
-    env.set_frames_action(4)
+    env.set_frames_stack(config.solver.frames_stack)
+    env.set_frames_action(1)
     num_actions = env.num_actions()
     
     ################################################################
-    # CLASSIC CONTROL ENVIRONMENT
-#     env = make_ctrl_env('CartPole-v1', render=config.record.render)
-#     # seeding
-#     env.seed(seed)
-#     env.set_frames_stack(frame_stack)
-#     env.set_frames_action(1)
-#     num_actions = env.num_actions()
-
+    # UTILITIES
+    replay = utils.VanillaReplay(obj_format='std_DQN', 
+                                 capacity=config.replay.capacity,
+                                 batch_size=config.replay.batch_size,
+                                 init_size=config.replay.init_size)
+    
+    get_thres = utils.framed_eps_greedy_func(eps_start=config.greedy.start,
+                                             eps_end=config.greedy.end,
+                                             num_decays=config.greedy.frames,
+                                             global_frames_func=env.global_frames)    
+    
     ################################################################
     # AGENT
-    q_net = Q_Network(input_size=(frame_stack, 84, 84),
+    q_net = Q_MLP(input_size=(frame_stack, env.observ_shape()),
                       num_actions=num_actions).to(device)
 
-    target_net = Q_Network(input_size=(frame_stack, 84, 84),
-                           num_actions=num_actions).to(device)
-
-#     q_net = Q_MLP(input_size=(frame_stack, env.observ_shape()),
-#                       num_actions=num_actions).to(device)
-
-#     target_net = Q_MLP(input_size=(frame_stack, env.observ_shape()),
-#                       num_actions=num_actions).to(device)
+    target_net = Q_MLP(input_size=(frame_stack, env.observ_shape()),
+                      num_actions=num_actions).to(device)
 
     loss_func = cfg_reader.get_loss_func(config.solver.loss)
     optimizer_func = cfg_reader.get_optimizer_func(config.solver.optimizer)
-    lr = config.solver.lr
-    replay = utils.NaiveReplay(obj_format='std_DQN', capacity=config.replay.capacity)
 
     agent = DQN_Agent(device = device,
                       q_net = q_net,
                       target_net = target_net,
                       loss_func = loss_func,
                       optimizer_func = optimizer_func,
-                      lr = lr,
                       replay = replay)
     agent.reset()
-    agent.set_optimize_func(batch_size=config.replay.sample_batch,
-                            gamma=config.solver.gamma,
-                            min_replay=config.replay.init_num,
-                            learn_freq=config.solver.learn_freq,
-                            tensorboard=tensorboard,
-                            counter=env.global_frames)
-
+    agent.set_exploration(get_sample=env.sample, get_thres=get_thres)
+    agent.set_tensorboard(tensorboard)
+    agent.set_optimize_scheme(lr=config.solver.lr, 
+                              gamma=config.solver.gamma, 
+                              optimize_freq=config.solver.optimize_freq, 
+                              update_target_freq=config.solver.update_target_freq)
+    
     ################################################################
-    # FUNCTION SUPPORTS
-    # get threshold between calculated/random action
-    get_thres = thres_controller(
-                        config.greedy.start,
-                        config.greedy.end,
-                        config.greedy.steps,
-                        config.greedy.delay,
-                        config.greedy.decay,
-                        config.greedy.mode,
-                        num_episodes)
-    # get target update controller
-    episodic_update_target = update_target_controller(
-                                agent,
-                                config.solver.target.update_freq,
-                                'episodic',
-                                config.solver.target.update_mode,
-                                debug=config.record.debug
-                                )
-    framed_update_target = update_target_controller(
-                                agent,
-                                config.solver.target.update_freq,
-                                'framed',
-                                config.solver.target.update_mode,
-                                debug=config.record.debug
-                                )
+    # SEEDING
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.manual_seed(seed)
+    env.seed(seed)
+    
+    ################################################################
+    # OBSERVING
+    # setting up initial random observations and replays during this session
+    print('now about to setup randomized [%s] required initial experience replay...' % 
+              agent.replay.init_size, flush=True)
+    while True:
+        env.reset()
+        curr_state, done = env.state().clone(), False
+        while len(agent.replay) < agent.replay.init_size and not done:
+            action = env.sample()
+            next_observ, reward, done, _ = env.step(action)
+            next_state = env.state().clone()
+            exp = agent.replay.form_obj(curr_state, action, next_state, reward)
+            agent.replay.push(exp)
+            curr_state = next_state
+            
+        print(time.strftime('[%Y-%m-%d-%H:%M:%S'), '%s]:' % os.environ['run_name'], 
+              'initializing experience replay progressing [%s/%s]' % (
+              len(agent.replay), agent.replay.init_size), flush=True)
+        if not done: break
+        # save final action into reply buffer
+        exp = agent.replay.form_obj(curr_state, action, None, reward)
+        agent.replay.push(exp)
 
+    print(time.strftime('[%Y-%m-%d-%H:%M:%S'), '%s]:' % os.environ['run_name'], 
+          'experience replay initialization completed [%s/%s]' % (
+          len(agent.replay), agent.replay.init_size), flush=True)
+    
+    env.refresh()
+    
     ################################################################
     # TRAINING
-    for ep in range(num_episodes):
+    for _ in range(num_episodes):
         env.reset()
-        # initial random action
-        action = env.sample()
-        curr_observ, _, done, _ = env.step(action)
-        curr_state = env.state().clone()
-        done = False
-        while not done:
-            thres = get_thres(ep, env.global_frames())
-            action = agent.next_action(thres, env.sample(), curr_input=env.state())
+        # get initial state
+        curr_state, done = env.state().clone(), False
+        while True:
+            action = agent.next_action(env.state)
             if not done:
                 next_observ, reward, done, _ = env.step(action)
                 next_state = env.state().clone()
             else:
                 next_state = None
-                
             exp = agent.replay.form_obj(curr_state, action, next_state, reward)
             agent.replay.push(exp)
-            
-                # recording via tensorboard
-#                 tensorboard.add_scalar('step/reward', env.action_reward(), env.global_frames())
-            tensorboard.add_scalar('step/thres', thres, env.global_frames())
-            tensorboard.add_scalar('replay/size', len(agent.replay),
-                                                       env.global_frames())
-
             curr_state = next_state
             agent.optimize()
-            # potentially update the target network
-            framed_update_target(env.global_frames())
+            if done: break
 
-        # potentially update the target network
-        episodic_update_target(ep)
-
-        print(time.strftime('[%Y-%m-%d-%H:%M:%S]'), 
-              '[%s]:' % os.environ['run_name'], 
-              'episode [%s/%s], ep-reward [%s], '
-              'eps-thres [%.2f], frames [%s]' % (
-              ep + 1, num_episodes, env.episodic_reward(),
-              thres, env.global_frames()), flush=True)
+        print(time.strftime('[%Y-%m-%d-%H:%M:%S'), '%s]:' % os.environ['run_name'], 
+              'episode [%s/%s], ep-reward [%s], eps-thres [%.2f], timesteps [%s], frames [%s]' % 
+              (env.global_episodes(), num_episodes, env.episodic_reward(), get_thres(), 
+               agent.global_timesteps(), env.global_frames()), flush=True)
         # recording via tensorboard
-        tensorboard.add_scalar('episode/reward', env.episodic_reward(), ep + 1)
-        tensorboard.add_scalar('episode/thres', thres, ep + 1)
+        tensorboard.add_scalar('episode/reward', env.episodic_reward(), env.global_episodes())
+        tensorboard.add_scalar('episode/thres', get_thres(), env.global_episodes())
 
-        if ep % config.record.save_freq == 0:
+        if env.global_episodes() % config.record.save_freq == 0:
             agent.save_pth(agent.q_net, config.record.save_path,
                            filename='q_net.pth', obj_name='q_network')
             agent.save_pth(agent.target_net, config.record.save_path,

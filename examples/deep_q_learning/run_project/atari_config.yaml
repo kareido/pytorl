@@ -6,14 +6,14 @@ solver:
     episodes: 4000
     frames_stack: 4
     # note: optimize_freq w.r.t timesteps
-    optimize_freq: 4
+    optimize_freq: 1
     # note: update_target_freq w.r.t timesteps
-    update_target_freq: 1000
+    update_target_freq: 250
     loss: smooth_l1_loss
-    optimizer: RMSprop 
+    optimizer: Adam
 greedy:
     start: 1
-    end: 0.1
+    end: 0.02
     frames: 100000
 replay:
     # note: capacity w.r.t states

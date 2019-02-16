@@ -42,10 +42,10 @@ class _AtariWrapper(gym.Wrapper, metaclass=MetaEnv):
         # state and status
         self.prev_observ = None
         self.curr_observ = None
+        self._new_observ_buffer = deque([], maxlen=1)
         self.curr_state = None
         # frame stack buffer
         self.buffer = deque([], maxlen=1)
-        
         # single life mode
         self.single_life = False
         self.lives = 0
@@ -53,6 +53,7 @@ class _AtariWrapper(gym.Wrapper, metaclass=MetaEnv):
     
     def set_frames_action(self, num=1):
         self.frames_action('set', num)
+        self._new_observ_buffer = deque([], maxlen=num)
         
         
     def set_frames_stack(self, num=1):
@@ -77,7 +78,11 @@ class _AtariWrapper(gym.Wrapper, metaclass=MetaEnv):
     
     def _feed_buffer(self):
         # deflickering previous and current observation
-        deflickered_observ = np.maximum(self.prev_observ, self.curr_observ)
+        if len(self._new_observ_buffer) == 0:
+            max_pooled_observ = self.curr_observ
+        else:
+            max_pooled_observ = np.max(np.stack(self._new_observ_buffer), axis=0)
+        deflickered_observ = np.maximum(self.prev_observ, max_pooled_observ)
         # let buffer save transformed 2-D frame
         encoded_frame = self.tsfm(deflickered_observ)
         self.buffer.append(encoded_frame)
@@ -114,6 +119,7 @@ class _AtariWrapper(gym.Wrapper, metaclass=MetaEnv):
         # reset episodic attributions
         self.reset_statistics('episodic')
         self.buffer.clear()
+        self._new_observ_buffer.clear()
         self.prev_observ = self.env.reset()
         if self.render_flag: self.render()
         init_frames = max(self.episodic_init_frames, self.buffer.maxlen)
@@ -121,6 +127,7 @@ class _AtariWrapper(gym.Wrapper, metaclass=MetaEnv):
         get_action = self._get_init_action(self.episodic_init_action)
         for _ in range(init_frames):
             self.curr_observ, reward, done, _ = self.env.step(get_action())
+            self._new_observ_buffer.append(self.curr_observ)
             if done: print('EXCEPTION: done received during reset()', flush=True)
             self._feed_buffer()
         # statistics
@@ -131,8 +138,8 @@ class _AtariWrapper(gym.Wrapper, metaclass=MetaEnv):
         
     def refresh(self):
         # state and status
-        self.prev_observ = None
-        self.curr_observ = None
+#         self.prev_observ = None
+        self._new_observ_buffer = deque([], maxlen=self.frames_action())
         self.curr_state = None
         # frame stack buffer
         self.buffer = deque([], maxlen=self.frames_stack())
@@ -143,10 +150,14 @@ class _AtariWrapper(gym.Wrapper, metaclass=MetaEnv):
         _action_reward = 0
         for _ in range(self.frames_action()):
             self.curr_observ, reward, done, info = self.env.step(action)
-            self._feed_buffer()
+            self._new_observ_buffer.append(self.curr_observ)
+#             self._feed_buffer()
             _action_reward += reward
             if self.render_flag: self.render()
+            self.global_frames('add')
+            self.episodic_frames('add')
             if done: break
+        self._feed_buffer()
         _action_reward = np.sign(_action_reward)
         if self.single_life:
             lives = self.env.unwrapped.ale.lives()
@@ -154,8 +165,6 @@ class _AtariWrapper(gym.Wrapper, metaclass=MetaEnv):
                 done = True
             self.lives = lives
         
-        self.global_frames('add', self.frames_action())
-        self.episodic_frames('add', self.frames_action())
         self.episodic_reward('add', _action_reward)
         self.action_reward('set', _action_reward)
         return self.curr_observ, self.action_reward(), done, info

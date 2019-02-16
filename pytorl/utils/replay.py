@@ -4,8 +4,8 @@ from collections import deque, namedtuple
 
 class _ExpReplay:
     def __init__(self, capacity, batch_size, init_size):
-        assert batch_size is not None and batch_size >= 1 and type(batch_size) == int
-        if init_size is None: init_size = batch_size
+        assert batch_size is not None and batch_size >= 1
+        if type(init_size) != int or init_size < batch_size: init_size = batch_size
         self.capacity = capacity
         self.batch_size = batch_size
         self.init_size = init_size

@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-import rl.utils as utils
+import pytorl.utils as utils
 
 
 """
