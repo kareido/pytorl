@@ -5,8 +5,8 @@ import numpy as np
 import torch
 import torchvision.transforms as T
 from pytorl.agents import DQN_Agent
-from pytorl.envs import make_atari_env, make_ctrl_env
-from pytorl.networks import Q_Network, Q_MLP
+from pytorl.envs import make_atari_env
+from pytorl.networks import Q_Network
 import pytorl.utils as utils
 
 os.environ.setdefault('run_name', 'default')
@@ -31,7 +31,7 @@ def main():
     tensorboard.add_textfile('config', cfg_reader.config_path)
 
     ################################################################
-#     ATARI ENVIRONMENT
+    # ATARI ENVIRONMENT
     resize = T.Compose([T.ToPILImage(),
                     T.Grayscale(1),
                     T.Resize((84, 84), interpolation=3),
@@ -45,15 +45,6 @@ def main():
     env.set_single_life(True)
     env.set_frames_action(4)
     num_actions = env.num_actions()
-    
-    ################################################################
-    # CLASSIC CONTROL ENVIRONMENT
-#     env = make_ctrl_env('CartPole-v1', render=config.record.render)
-#     # seeding
-#     env.seed(seed)
-#     env.set_frames_stack(config.solver.frames_stack)
-#     env.set_frames_action(1)
-#     num_actions = env.num_actions()
     
     ################################################################
     # UTILITIES
@@ -74,12 +65,6 @@ def main():
 
     target_net = Q_Network(input_size=(frames_stack, 84, 84),
                            num_actions=num_actions).to(device)
-
-#     q_net = Q_MLP(input_size=(frame_stack, env.observ_shape()),
-#                       num_actions=num_actions).to(device)
-
-#     target_net = Q_MLP(input_size=(frame_stack, env.observ_shape()),
-#                       num_actions=num_actions).to(device)
 
     loss_func = cfg_reader.get_loss_func(config.solver.loss)
     optimizer_func = cfg_reader.get_optimizer_func(config.solver.optimizer)
@@ -107,7 +92,7 @@ def main():
     env.seed(seed)
     
     ################################################################
-    # OBSERVING
+    # PRETRAIN
     # setting up initial random observations and replays during this session
     print('now about to setup randomized [%s] required initial experience replay...' % 
               agent.replay.init_size, flush=True)

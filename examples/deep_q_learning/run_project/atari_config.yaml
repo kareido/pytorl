@@ -8,7 +8,7 @@ solver:
     # note: optimize_freq w.r.t timesteps
     optimize_freq: 1
     # note: update_target_freq w.r.t timesteps
-    update_target_freq: 250
+    update_target_freq: 1000
     loss: smooth_l1_loss
     optimizer: Adam
 greedy:
@@ -18,7 +18,7 @@ greedy:
 replay:
     # note: capacity w.r.t states
     capacity: 100000
-    init_size: 10000
+    init_size: default
     batch_size: 32
 record:
     save_freq: 100

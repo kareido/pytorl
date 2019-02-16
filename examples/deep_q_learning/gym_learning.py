@@ -5,8 +5,8 @@ import numpy as np
 import torch
 import torchvision.transforms as T
 from pytorl.agents import DQN_Agent
-from pytorl.envs import make_atari_env, make_ctrl_env
-from pytorl.networks import Q_Network, Q_MLP
+from pytorl.envs import make_ctrl_env
+from pytorl.networks import Q_MLP
 import pytorl.utils as utils
 
 os.environ.setdefault('run_name', 'default')
@@ -20,7 +20,7 @@ def main():
 
     ################################################################
     # CONFIG
-    cfg_reader = utils.ConfigReader(default='run_project/atari_config.yaml')
+    cfg_reader = utils.ConfigReader(default='run_project/gym_config.yaml')
     config = cfg_reader.get_config()
     seed, num_episodes = config.seed, config.solver.episodes
 
@@ -32,12 +32,17 @@ def main():
 
     ################################################################
     # CLASSIC CONTROL ENVIRONMENT
+    frames_stack = config.solver.frames_stack
     env = make_ctrl_env(config.solver.env, render=config.record.render)
     # seeding
     env.seed(seed)
-    env.set_frames_stack(config.solver.frames_stack)
+    env.set_frames_stack(frames_stack)
     env.set_frames_action(1)
     num_actions = env.num_actions()
+    # try decap the environment limit
+#     try:
+#         env._max_episode_steps = 10000
+#     except: pass
     
     ################################################################
     # UTILITIES
@@ -53,10 +58,10 @@ def main():
     
     ################################################################
     # AGENT
-    q_net = Q_MLP(input_size=(frame_stack, env.observ_shape()),
+    q_net = Q_MLP(input_size=(frames_stack, env.observ_shape()),
                       num_actions=num_actions).to(device)
 
-    target_net = Q_MLP(input_size=(frame_stack, env.observ_shape()),
+    target_net = Q_MLP(input_size=(frames_stack, env.observ_shape()),
                       num_actions=num_actions).to(device)
 
     loss_func = cfg_reader.get_loss_func(config.solver.loss)
@@ -85,7 +90,7 @@ def main():
     env.seed(seed)
     
     ################################################################
-    # OBSERVING
+    # PRETRAIN
     # setting up initial random observations and replays during this session
     print('now about to setup randomized [%s] required initial experience replay...' % 
               agent.replay.init_size, flush=True)

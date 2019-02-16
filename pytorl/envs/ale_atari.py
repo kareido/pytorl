@@ -138,12 +138,13 @@ class _AtariWrapper(gym.Wrapper, metaclass=MetaEnv):
         
     def refresh(self):
         # state and status
-#         self.prev_observ = None
+        self.prev_observ = None
         self._new_observ_buffer = deque([], maxlen=self.frames_action())
         self.curr_state = None
         # frame stack buffer
         self.buffer = deque([], maxlen=self.frames_stack())
         self.reset_statistics('all')
+        
         
     def step(self, action):
         if isinstance(action, torch.Tensor): action = action.item()

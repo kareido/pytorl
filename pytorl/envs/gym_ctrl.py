@@ -41,18 +41,13 @@ class _Gym1DWrapper(gym.Wrapper, metaclass=MetaEnv):
         self.buffer = deque([], maxlen=num)
         
         
-    def set_episodic_init(self, op='RANDOM', frames=1):
-        assert type(frames) == int and frames >= 1
-        if op is None: op = 'RANDOM'
-        self.episodic_init_action = op
-        self.episodic_init_frames = frames
-
-        
     def num_actions(self):
         return self.action_space.n
     
+    
     def observ_shape(self):
         return self.observation_space.shape[0]
+    
     
     def _feed_buffer(self):
         # let buffer save transformed 1-D frame
@@ -82,32 +77,43 @@ class _Gym1DWrapper(gym.Wrapper, metaclass=MetaEnv):
         self.buffer.clear()
         self.prev_observ = self.env.reset()
         if self.render_flag: self.render()
-        init_frames = self.buffer.maxlen - 1
-        if init_frames > 0:
-            get_action = self.sample
-            for _ in range(init_frames):
-                self.curr_observ, reward, done, _ = self.env.step(get_action())
-                if done: print('EXCEPTION: done received during reset()', flush=True)
-                self._feed_buffer()
+        init_frames = self.buffer.maxlen
+        assert init_frames > 0, 'minimum buffer length should be 1'
+        get_action = self.sample
+        for _ in range(init_frames):
+            self.curr_observ, reward, done, _ = self.env.step(get_action())
+            if done: print('EXCEPTION: done received during reset()', flush=True)
+            self._feed_buffer()
         # statistics
         self.global_frames('add', init_frames + 1)
         self.global_episodes('add')
         self.episodic_frames('add', init_frames + 1)
-
+        
+        
+    def refresh(self):
+        # state and status
+        self.prev_observ = None
+        self.curr_state = None
+        # frame stack buffer
+        self.buffer = deque([], maxlen=self.frames_stack())
+        self.reset_statistics('all')
+        
         
     def step(self, action):
         if isinstance(action, torch.Tensor): action = action.item()
         _action_reward = 0
         for _ in range(self.frames_action()):
+#             self.prev_observ = self.curr_observ
             self.curr_observ, reward, done, info = self.env.step(action)
-            self._feed_buffer()
             _action_reward += reward
+            self._feed_buffer()
             if self.render_flag: self.render()
+            self.global_frames('add')
+            self.episodic_frames('add')
             if done: break
+#         self._feed_buffer()
         _action_reward = np.sign(_action_reward)
         
-        self.global_frames('add', self.frames_action())
-        self.episodic_frames('add', self.frames_action())
         self.episodic_reward('add', _action_reward)
         self.action_reward('set', _action_reward)
         return self.curr_observ, self.action_reward(), done, info
