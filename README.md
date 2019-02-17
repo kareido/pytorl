@@ -1,10 +1,6 @@
 ## PyToRL: PyTorch Toolbox for Reinforcement Learning
-
+#### This project implements RL algoritms via PyTorch v1.0.0+
 #### CURRENTLY UNDER DEVELOPMENT
-
-&nbsp;  
-
-### This project implements RL algoritms via Pytorch v1.0.0+
 
 &nbsp;  
 
