@@ -16,4 +16,4 @@ __pycache__/
 log.txt
 
 # tensorboard files
-*.local
+events.out.tfevents.*
