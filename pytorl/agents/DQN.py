@@ -10,10 +10,10 @@ class DQN_Agent(Agent):
     def __init__(self, 
                  device, 
                  q_net, 
-                 target_net, 
-                 loss_func, 
-                 optimizer_func,  
-                 replay, 
+                 target_net=None, 
+                 loss_func=None, 
+                 optimizer_func=None,  
+                 replay=None, 
                 ):
         self.device = device
         self.q_net = q_net
@@ -21,8 +21,8 @@ class DQN_Agent(Agent):
         self.loss = loss_func
         self._get_optimizer = optimizer_func
         self.replay = replay
-        self.batch_size = replay.batch_size
         # attributes for optimization
+        self.batch_size = None
         self.lr = .0001
         self.gamma = .99
         self.optimize_freq = 1
@@ -46,6 +46,7 @@ class DQN_Agent(Agent):
                             update_target_freq=1, 
                            ):
         # set attributes
+        self.batch_size = replay.batch_size
         self.lr = lr
         self.gamma = gamma
         self.optimize_freq = optimize_freq

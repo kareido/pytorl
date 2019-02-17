@@ -36,7 +36,7 @@ def main():
                     T.Grayscale(1),
                     T.Resize((84, 84), interpolation=3),
                     T.ToTensor()])
-    frames_stack = config.solver.frames_stack
+    
     env = make_atari_env(config.solver.env, resize,
                         render=config.record.render)
 
@@ -48,22 +48,11 @@ def main():
     
     ################################################################
     # AGENT
-    q_net = Q_Network(input_size=(frames_stack, 84, 84),
-                      num_actions=num_actions).to(device)
-
-    target_net = None
-    
-    loss_func = None
-    optimizer_func = None
-
-    agent = DQN_Agent(device = device,
-                      q_net = q_net,
-                      target_net = target_net,
-                      loss_func = loss_func,
-                      optimizer_func = optimizer_func,
-                      replay = None)
-    agent.reset()
-    agent.set_tensorboard(tensorboard)
+    q_net = Q_Network(input_size=(config.solver.frames_stack, 84, 84),
+                      num_actions=num_actions)
+    utils.init_network(q_net, config.record.load_path, 'q_net.pth', obj_name='q_network')
+    q_net = q_net.to(device)
+    agent = DQN_Agent(device=device, q_net=q_net)
     
     ################################################################
     # SEEDING
@@ -74,67 +63,22 @@ def main():
     env.seed(seed)
     
     ################################################################
-    # PRETRAIN
-    # setting up initial random observations and replays during this session
-    print('now about to setup randomized [%s] required initial experience replay...' % 
-              agent.replay.init_size, flush=True)
-    while True:
-        env.reset()
-        curr_state, done = env.state().clone(), False
-        while len(agent.replay) < agent.replay.init_size and not done:
-            action = env.sample()
-            next_observ, reward, done, _ = env.step(action)
-            next_state = env.state().clone()
-            exp = agent.replay.form_obj(curr_state, action, next_state, reward)
-            agent.replay.push(exp)
-            curr_state = next_state
-            
-        print(time.strftime('[%Y-%m-%d-%H:%M:%S'), '%s]:' % os.environ['run_name'], 
-              'initializing experience replay progressing [%s/%s]' % (
-              len(agent.replay), agent.replay.init_size), flush=True)
-        if not done: break
-        # save final action into reply buffer
-        exp = agent.replay.form_obj(curr_state, action, None, reward)
-        agent.replay.push(exp)
-
-    print(time.strftime('[%Y-%m-%d-%H:%M:%S'), '%s]:' % os.environ['run_name'], 
-          'experience replay initialization completed [%s/%s]' % (
-          len(agent.replay), agent.replay.init_size), flush=True)
-    
-    env.refresh()
-    
-    ################################################################
-    # TRAINING
+    # TESTING
     for _ in range(num_episodes):
         env.reset()
         # get initial state
         curr_state, done = env.state().clone(), False
         while True:
             action = agent.next_action(env.state)
-            if not done:
-                next_observ, reward, done, _ = env.step(action)
-                next_state = env.state().clone()
-            else:
-                next_state = None
-            exp = agent.replay.form_obj(curr_state, action, next_state, reward)
-            agent.replay.push(exp)
-            curr_state = next_state
-            agent.optimize()
+            next_observ, reward, done, _ = env.step(action)
             if done: break
 
         print(time.strftime('[%Y-%m-%d-%H:%M:%S'), '%s]:' % os.environ['run_name'], 
-              'episode [%s/%s], ep-reward [%s], threshold [%.2f], timesteps [%s], frames [%s]' % 
-              (env.global_episodes(), num_episodes, env.episodic_reward(), get_thres(), 
-               agent.global_timesteps(), env.global_frames()), flush=True)
+              'episode [%s/%s], ep-reward [%s], frames [%s]' % 
+              (env.global_episodes(), num_episodes, env.episodic_reward(), 
+               env.global_frames()), flush=True)
         # recording via tensorboard
         tensorboard.add_scalar('episode/reward', env.episodic_reward(), env.global_episodes())
-        tensorboard.add_scalar('episode/thres', get_thres(), env.global_episodes())
-
-        if env.global_episodes() % config.record.save_freq == 0:
-            agent.save_pth(agent.q_net, config.record.save_path,
-                           filename='q_net.pth', obj_name='q_network')
-            agent.save_pth(agent.target_net, config.record.save_path,
-                           filename='target_net.pth', obj_name='target_network')
 
 
 if __name__ == '__main__':

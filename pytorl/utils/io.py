@@ -53,41 +53,33 @@ def load_pth(path, filename=None, obj_name=None):
     return loaded
 
 
-def init_network(conf):
-    network = getattr(models, conf.arch)()
-    network.change_output_classes(conf.num_classes)
-    rank, world_size = alt_dist.get_rank(), alt_dist.get_world_size()
-    if rank == 0:
-        print('\narchitecture: [%s]' % conf.arch, flush=True)
+def init_network(network, pretrained_path=None, filename=None, obj_name=None):
+    """
+    load a pretrained model
+
+    Args:
+        network: the network which is going to be fed with the pretrained .pth
+        pretrained_path: supposed to be a string containing the path and filename if specifying 
+            just the path without filename, it is also ok so long as the filename is correctly set.
+            if pretrained_path is invalid(e.g. file not found or not a string), this function will 
+            return immediately without load
+        filename: supposed to be set if path is literally just the path without the file name.
+        obj_name: the string that will be the name of the network obj, if not set, the loading 
+            process will be silent.
     
+    """    
+    if type(pretrained_path) != str: return
+    elif filename is not None: pretrained_path = os.path.join(pretrained_path, filename)
+    if not os.path.isfile(pretrained_path): return
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    if device == 'cuda':
+        device = 'cuda:%s' % torch.cuda.current_decice()
+        print('mapping cuda to [%s]' % device, flush=True)
     checkpoint = torch.load(
-        conf.pretrain_path,
-        map_location = 'cuda:%d' % torch.cuda.current_device()
+        pretrained_path,
+        map_location = device
     )
-    try:
-        network.load_state_dict(checkpoint['network'])
-#         alt_dist.barrier()
-        print('rank [%s/%s] resumed from best ckpt: [%s]' % (rank, world_size, conf.pretrain_path), flush=True)
-    except KeyError:
-        if rank == 0:
-            print("KEY ERROR FOUND AS THERE IS NO KEY NAMED [network] IN [checkpoint]", flush=True)
-            print('trying to execute network.load_state_dict(checkpoint, strict=True)...', flush=True)
-        try:
-            network.load_state_dict(checkpoint, strict=True)
-#             alt_dist.barrier()
-            print('rank [%s/%s] resumed from best ckpt: [%s]' % (rank, world_size, conf.pretrain_path), flush=True)            
-        except:
-            if rank == 0:
-                print('network.load_state_dict(checkpoint, strict=True) FAILED AS KEYS MISMATCH', flush=True)
-                print('trying to execute network.load_state_dict(checkpoint, strict=False)...', flush=True)
-            try:
-                network.load_state_dict(checkpoint, strict=False)
-#                 alt_dist.barrier()
-                print('rank [%s/%s] resumed from best ckpt: [%s]' % (rank, world_size, conf.pretrain_path), flush=True)
-            except:
-                raise ValueError('unhandled checkpoint file structure')
-    
-    alt_dist.barrier()
-    if rank == 0:
-        print('network on all ranks (total num: [%s]) initialization completed\n' % world_size, flush=True)
-    return network
+    network.load_state_dict(checkpoint)
+    if obj_name is not None:
+        print('[%s] successfully loaded from [%s]' % (
+                obj_name, os.path.abs,_path(pretrained_path)), flush=True)

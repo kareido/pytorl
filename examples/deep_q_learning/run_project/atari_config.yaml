@@ -23,5 +23,6 @@ replay:
 record:
     save_freq: 100
     save_path: ./checkpoint
+    load_path: ./checkpoint
     render: False
     
