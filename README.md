@@ -4,7 +4,7 @@
 
 #### WIP: implementing RL algoritms via PyTorch v1.0.0+
 
-&nbsp;  
+---
 
 **current environment used for developing:**
 > gym == 0.10.11 with atari 
