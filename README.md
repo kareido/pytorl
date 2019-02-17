@@ -19,7 +19,7 @@ sh <script file>
 &nbsp;    
 **quick example to run the project from scratch:**
 ```bash
-git clone https://github.com/kareido/pytorl.git
+git clone http://gitlab.sz.sensetime.com/huangzhe/TORCH_RL.git
 cd examples/deep_q_learning/run_project
 sh ATARI_RUN.sh
 ```
