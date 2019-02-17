@@ -32,7 +32,7 @@ def save_pth(obj, path, filename=None, obj_name=None):
 
 def load_pth(path, filename=None, obj_name=None):
     """
-    save an obj on the disk as .pth
+    load  an obj on the disk as .pth
 
     Args:
         path: supposed to be a string containing the path and filename if specifying just the 
@@ -49,7 +49,7 @@ def load_pth(path, filename=None, obj_name=None):
     loaded = torch.load(path)
     if obj_name:
         print('[%s] successfully loaded from [%s]' % (
-                obj_name, os.path.abs,_path(path)), flush=True)
+                obj_name, os.path.abspath(path)), flush=True)
     return loaded
 
 
@@ -82,4 +82,4 @@ def init_network(network, pretrained_path=None, filename=None, obj_name=None):
     network.load_state_dict(checkpoint)
     if obj_name is not None:
         print('[%s] successfully loaded from [%s]' % (
-                obj_name, os.path.abs,_path(pretrained_path)), flush=True)
+                obj_name, os.path.abspath(pretrained_path)), flush=True)

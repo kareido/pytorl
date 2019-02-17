@@ -36,24 +36,23 @@ def main():
                     T.Grayscale(1),
                     T.Resize((84, 84), interpolation=3),
                     T.ToTensor()])
-    
+    frames_stack = config.solver.frames_stack
     env = make_atari_env(config.solver.env, resize,
                         render=config.record.render)
 
     env.set_episodic_init('FIRE')
-#     env.set_frames_stack(frames_stack)
-#     env.set_single_life(True)
-#     env.set_frames_action(4)
+    env.set_frames_stack(frames_stack)
+    env.set_frames_action(4)
     num_actions = env.num_actions()
-    
+
     ################################################################
     # AGENT
-    q_net = Q_Network(input_size=(config.solver.frames_stack, 84, 84),
+    q_net = Q_Network(input_size=(frames_stack, 84, 84),
                       num_actions=num_actions)
     utils.init_network(q_net, config.record.load_path, 'q_net.pth', obj_name='q_network')
     q_net = q_net.to(device)
     agent = DQN_Agent(device=device, q_net=q_net)
-    
+
     ################################################################
     # SEEDING
     random.seed(seed)
@@ -61,21 +60,22 @@ def main():
     torch.cuda.manual_seed(seed)
     torch.manual_seed(seed)
     env.seed(seed)
-    
+
     ################################################################
     # TESTING
     for _ in range(num_episodes):
         env.reset()
         # get initial state
-        curr_state, done = env.state().clone(), False
+        done = False
         while True:
             action = agent.next_action(env.state)
             next_observ, reward, done, _ = env.step(action)
+            time.sleep(0.02)
             if done: break
 
-        print(time.strftime('[%Y-%m-%d-%H:%M:%S'), '%s]:' % os.environ['run_name'], 
-              'episode [%s/%s], ep-reward [%s], frames [%s]' % 
-              (env.global_episodes(), num_episodes, env.episodic_reward(), 
+        print(time.strftime('[%Y-%m-%d-%H:%M:%S'), '%s]:' % os.environ['run_name'],
+              'episode [%s/%s], ep-reward [%s], frames [%s]' %
+              (env.global_episodes(), num_episodes, env.episodic_reward(),
                env.global_frames()), flush=True)
         # recording via tensorboard
         tensorboard.add_scalar('episode/reward', env.episodic_reward(), env.global_episodes())
@@ -85,4 +85,4 @@ if __name__ == '__main__':
     main()
 
 
-    
+
