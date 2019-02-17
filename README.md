@@ -1,9 +1,9 @@
 ## PyToRL: PyTorch Toolbox for Reinforcement Learning
-### <pre>       [PROJECT CURRENTLY UNDER DEVELOPMENT] </pre>
+### &nbsp; &nbsp; &nbsp; &nbsp; [PROJECT CURRENTLY UNDER DEVELOPMENT]
 
 &nbsp;  
 <pre>
-This project is intended to be a RL toolbox for pytorch and contains RL algorithm implementations using  
+This project, named pytorl, is intended to be a RL toolbox for pytorch and contains RL algorithm implementations using  
 this pytorl toolbox. As I am currently learning RL, I am going to update this project with many other  
 agents and algorithms soon.
 </pre>
