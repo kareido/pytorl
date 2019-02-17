@@ -1,0 +1,29 @@
+seed: 123
+solver:
+    env: PongNoFrameskip-v4
+    lr: 0.0001
+    gamma: 0.99
+    episodes: 4000
+    frames_stack: 4
+    frames_action: 4
+    # note: optimize_freq w.r.t timesteps
+    optimize_freq: 1
+    # note: update_target_freq w.r.t timesteps
+    update_target_freq: 1000
+    loss: smooth_l1_loss
+    optimizer: Adam
+greedy:
+    start: 1
+    end: 0.02
+    frames: 100000
+replay:
+    # note: capacity w.r.t states
+    capacity: 100000
+    init_size: default
+    batch_size: 32
+record:
+    save_freq: 100
+    save_path: ./checkpoint
+    load_path: /Users/zhe/Desktop/
+    render: True
+    
