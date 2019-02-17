@@ -15,8 +15,9 @@ current environment used for developing:
 # scripts are located in examples/<project name>/run_project/ folder
 sh <script file> 
 ```
-&nbsp;
-&nbsp;    
+
+&nbsp;  
+
 **quick example to run the project from scratch:**
 ```bash
 git clone http://gitlab.sz.sensetime.com/huangzhe/TORCH_RL.git
