@@ -1,7 +1,14 @@
-# PyToRL: PyTorch ToolBox for Reinforcement Learning
+## PyToRL: PyTorch Toolbox for Reinforcement Learning
 
+### CURRENTLY UNDER DEVELOPMENT
 
-current environment used for developing: 
+&nbsp;  
+
+### This project implements RL algoritms via Pytorch v1.0.0+
+
+&nbsp;  
+
+**current environment used for developing:**
 > gym == 0.10.11 with atari 
 > numpy == 1.14.3  
 > python == 3.6.5  
