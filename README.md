@@ -10,7 +10,7 @@ agents and algorithms soon.
 &nbsp;  
 
 **current environment used for developing:**
-> gym == 0.10.11 with atari 
+> gym == 0.10.11 with atari  
 > numpy == 1.14.3  
 > python == 3.6.5  
 > pytorch == 1.0.1  
