@@ -22,7 +22,7 @@ algorithms and faster or more efficient implementations soon.
 **run the example code via run_project script:**
 ```bash
 # scripts are located in examples/<project name>/run_project/ folder
-sh <script file> <run_name> <partition>
+sh <script file> <run name> <partition>
 ```
 
 &nbsp;  
