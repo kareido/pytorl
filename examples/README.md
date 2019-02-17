@@ -1,2 +1,2 @@
-## examples of different reinforcement learning algorithm
-RL implementation examples by using RL package
+## examples of different reinforcement learning algorithms
+reinforcement learning implementations by using pytorl package
