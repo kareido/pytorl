@@ -1,5 +1,5 @@
 ## PyToRL: PyTorch Toolbox for Reinforcement Learning
-### &nbsp;&nbsp;&nbsp;[PROJECT CURRENTLY UNDER DEVELOPMENT]
+### &nbsp;     [PROJECT CURRENTLY UNDER DEVELOPMENT]
 
 &nbsp;  
 
