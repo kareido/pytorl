@@ -2,7 +2,7 @@
 ### [PROJECT CURRENTLY UNDER DEVELOPMENT]
 
 <pre>
-This project, named pytorl, is intended to be a RL toolbox for pytorch and 
+This project, named pytorl, is intended to be an RL toolbox for pytorch and 
 contains RL algorithm implementations using  this pytorl toolbox. As I am 
 currently learning RL, I am going to update this project with other agents, 
 algorithms and faster or more efficient implementations soon. 
