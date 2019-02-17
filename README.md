@@ -1,4 +1,4 @@
-## PyToRL: PyTorch ToolBox for Reinforcement Learning
+# PyToRL: PyTorch ToolBox for Reinforcement Learning
 
 
 current environment used for developing: 
