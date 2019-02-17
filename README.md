@@ -22,7 +22,7 @@ algorithms and faster or more efficient implementations soon.
 **run the example code via run_project script:**
 ```bash
 # scripts are located in examples/<project name>/run_project/ folder
-sh <script file> 
+sh <script file> <run_name> <partition>
 ```
 
 &nbsp;  
@@ -31,5 +31,5 @@ sh <script file>
 ```bash
 git clone http://gitlab.sz.sensetime.com/huangzhe/TORCH_RL.git
 cd examples/deep_q_learning/run_project
-sh ATARI_RUN.sh
+sh ATARI_RUN.sh DQN_PongNoFrameskip-v4 SenseMediaF
 ```
