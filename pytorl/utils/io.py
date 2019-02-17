@@ -51,3 +51,43 @@ def load_pth(path, filename=None, obj_name=None):
         print('[%s] successfully loaded from [%s]' % (
                 obj_name, os.path.abs,_path(path)), flush=True)
     return loaded
+
+
+def init_network(conf):
+    network = getattr(models, conf.arch)()
+    network.change_output_classes(conf.num_classes)
+    rank, world_size = alt_dist.get_rank(), alt_dist.get_world_size()
+    if rank == 0:
+        print('\narchitecture: [%s]' % conf.arch, flush=True)
+    
+    checkpoint = torch.load(
+        conf.pretrain_path,
+        map_location = 'cuda:%d' % torch.cuda.current_device()
+    )
+    try:
+        network.load_state_dict(checkpoint['network'])
+#         alt_dist.barrier()
+        print('rank [%s/%s] resumed from best ckpt: [%s]' % (rank, world_size, conf.pretrain_path), flush=True)
+    except KeyError:
+        if rank == 0:
+            print("KEY ERROR FOUND AS THERE IS NO KEY NAMED [network] IN [checkpoint]", flush=True)
+            print('trying to execute network.load_state_dict(checkpoint, strict=True)...', flush=True)
+        try:
+            network.load_state_dict(checkpoint, strict=True)
+#             alt_dist.barrier()
+            print('rank [%s/%s] resumed from best ckpt: [%s]' % (rank, world_size, conf.pretrain_path), flush=True)            
+        except:
+            if rank == 0:
+                print('network.load_state_dict(checkpoint, strict=True) FAILED AS KEYS MISMATCH', flush=True)
+                print('trying to execute network.load_state_dict(checkpoint, strict=False)...', flush=True)
+            try:
+                network.load_state_dict(checkpoint, strict=False)
+#                 alt_dist.barrier()
+                print('rank [%s/%s] resumed from best ckpt: [%s]' % (rank, world_size, conf.pretrain_path), flush=True)
+            except:
+                raise ValueError('unhandled checkpoint file structure')
+    
+    alt_dist.barrier()
+    if rank == 0:
+        print('network on all ranks (total num: [%s]) initialization completed\n' % world_size, flush=True)
+    return network

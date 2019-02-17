@@ -19,6 +19,6 @@ pg-run -rn ${prefix}/${name} -c "${srun_cmd} ${py_cmd}"
 
 echo '________________________________________________________________________________'
 echo          "RUN_NAME: ${prefix}/${name}"
-echo          "CMD_LINE: sh PG_RUN.sh ${name} ${partition}"
+echo          "CMD_LINE: sh ATARI_RUN.sh ${name} ${partition}"
 echo -e "\e[41mFINISHED\e[0m: \e[43m${alg}\e[0m"
 echo '‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾'

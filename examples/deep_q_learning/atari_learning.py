@@ -141,7 +141,7 @@ def main():
             if done: break
 
         print(time.strftime('[%Y-%m-%d-%H:%M:%S'), '%s]:' % os.environ['run_name'], 
-              'episode [%s/%s], ep-reward [%s], eps-thres [%.2f], timesteps [%s], frames [%s]' % 
+              'episode [%s/%s], ep-reward [%s], threshold [%.2f], timesteps [%s], frames [%s]' % 
               (env.global_episodes(), num_episodes, env.episodic_reward(), get_thres(), 
                agent.global_timesteps(), env.global_frames()), flush=True)
         # recording via tensorboard
@@ -157,6 +157,5 @@ def main():
 
 if __name__ == '__main__':
     main()
-
 
 

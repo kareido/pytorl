@@ -5,8 +5,8 @@ import numpy as np
 import torch
 import torchvision.transforms as T
 from pytorl.agents import DQN_Agent
-from pytorl.envs import make_ctrl_env
-from pytorl.networks import Q_MLP
+from pytorl.envs import make_atari_env
+from pytorl.networks import Q_Network
 import pytorl.utils as utils
 
 os.environ.setdefault('run_name', 'default')
@@ -20,7 +20,7 @@ def main():
 
     ################################################################
     # CONFIG
-    cfg_reader = utils.ConfigReader(default='run_project/gym_config.yaml')
+    cfg_reader = utils.ConfigReader(default='run_project/atari_config.yaml')
     config = cfg_reader.get_config()
     seed, num_episodes = config.seed, config.solver.episodes
 
@@ -31,55 +31,39 @@ def main():
     tensorboard.add_textfile('config', cfg_reader.config_path)
 
     ################################################################
-    # CLASSIC CONTROL ENVIRONMENT
+    # ATARI ENVIRONMENT
+    resize = T.Compose([T.ToPILImage(),
+                    T.Grayscale(1),
+                    T.Resize((84, 84), interpolation=3),
+                    T.ToTensor()])
     frames_stack = config.solver.frames_stack
-    env = make_ctrl_env(config.solver.env, render=config.record.render)
-    # seeding
-    env.seed(seed)
-    env.set_frames_stack(frames_stack)
-    env.set_frames_action(1)
+    env = make_atari_env(config.solver.env, resize,
+                        render=config.record.render)
+
+    env.set_episodic_init('FIRE')
+#     env.set_frames_stack(frames_stack)
+#     env.set_single_life(True)
+#     env.set_frames_action(4)
     num_actions = env.num_actions()
-    # try decap the environment limit
-#     try:
-#         env._max_episode_steps = 10000
-#     except: pass
-    
-    ################################################################
-    # UTILITIES
-    replay = utils.VanillaReplay(obj_format='std_DQN', 
-                                 capacity=config.replay.capacity,
-                                 batch_size=config.replay.batch_size,
-                                 init_size=config.replay.init_size)
-    
-    get_thres = utils.framed_eps_greedy_func(eps_start=config.greedy.start,
-                                             eps_end=config.greedy.end,
-                                             num_decays=config.greedy.frames,
-                                             global_frames_func=env.global_frames)    
     
     ################################################################
     # AGENT
-    q_net = Q_MLP(input_size=(frames_stack, env.observ_shape()),
+    q_net = Q_Network(input_size=(frames_stack, 84, 84),
                       num_actions=num_actions).to(device)
 
-    target_net = Q_MLP(input_size=(frames_stack, env.observ_shape()),
-                      num_actions=num_actions).to(device)
-
-    loss_func = cfg_reader.get_loss_func(config.solver.loss)
-    optimizer_func = cfg_reader.get_optimizer_func(config.solver.optimizer)
+    target_net = None
+    
+    loss_func = None
+    optimizer_func = None
 
     agent = DQN_Agent(device = device,
                       q_net = q_net,
                       target_net = target_net,
                       loss_func = loss_func,
                       optimizer_func = optimizer_func,
-                      replay = replay)
+                      replay = None)
     agent.reset()
-    agent.set_exploration(get_sample=env.sample, get_thres=get_thres)
     agent.set_tensorboard(tensorboard)
-    agent.set_optimize_scheme(lr=config.solver.lr, 
-                              gamma=config.solver.gamma, 
-                              optimize_freq=config.solver.optimize_freq, 
-                              update_target_freq=config.solver.update_target_freq)
     
     ################################################################
     # SEEDING
@@ -157,3 +141,4 @@ if __name__ == '__main__':
     main()
 
 
+    

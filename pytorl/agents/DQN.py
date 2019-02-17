@@ -58,7 +58,7 @@ class DQN_Agent(Agent):
     def reset(self):
         self.replay.clear()
         self.set_device()
-        self.global_timesteps('set', 0)
+        self.optimize_counter('set', 0)
         self.optimize_timer('set', 0)
         for name, params in self.q_net.named_parameters():
             if 'bias' in name:
@@ -100,7 +100,7 @@ class DQN_Agent(Agent):
     def optimize(self):
         self.optimize_timer('add')
         if self.optimize_timer() % self.optimize_freq != 0: return
-        self.global_timesteps('add')
+        self.optimize_counter('add')
         sample_exp = self.replay.sample()
         batch = self.replay.form_obj(*zip(*sample_exp))
         curr_states = torch.cat(batch.curr_state).to(self.device)
@@ -128,7 +128,7 @@ class DQN_Agent(Agent):
         clip_grad_value_(self.q_net.parameters(), 1)
         self.optimizer.step()
         # update target network
-        if self.global_timesteps() % self.update_target_freq == 0:
+        if self.optimize_counter() % self.update_target_freq == 0:
             self.update_target()
         # tensorboard recording
         if self._tensorboard is not None:
@@ -137,16 +137,11 @@ class DQN_Agent(Agent):
             expected_q_values_mean = expected_q_values.mean().item()
 
             self._tensorboard.add_scalar('timestep/replay_reward-mean', 
-                                   reward_mean, self.global_timesteps())
-            self._tensorboard.add_scalar('timestep/loss', q_net_loss, self.global_timesteps())
+                                   reward_mean, self.optimize_counter())
+            self._tensorboard.add_scalar('timestep/loss', q_net_loss, self.optimize_counter())
             self._tensorboard.add_scalar('timestep/predicted_q_values-mean', 
-                                   predicted_q_values_mean, self.global_timesteps())
+                                   predicted_q_values_mean, self.optimize_counter())
             self._tensorboard.add_scalar('timestep/expected_q_values-mean', 
-                                   expected_q_values_mean, self.global_timesteps())
+                                   expected_q_values_mean, self.optimize_counter())
 
-        
-        
-        
-        
-    
         

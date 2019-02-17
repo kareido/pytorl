@@ -12,7 +12,7 @@ this base agent contains:
 
 class Agent:
     def __init__(self):
-        self._global_timesteps = 0
+        self._optimize_counter = 0
         self._optimize_timer = 0
         self._tensorboard = None
     
@@ -23,13 +23,13 @@ class Agent:
         utils.load_pth(path, filename=filename, obj_name=obj_name)
         
         
-    def global_timesteps(self, pattern=None, num=1):
+    def optimize_counter(self, pattern=None, num=1):
         assert type(num) == int and num >= 0
         if pattern == 'add':
-            self._global_timesteps += num
+            self._optimize_counter += num
         elif pattern == 'set':
-            self._global_timesteps = num           
-        return self._global_timesteps 
+            self._optimize_counter = num           
+        return self._optimize_counter 
 
     def optimize_timer(self, pattern=None, num=1):
         assert type(num) == int and num >= 0
