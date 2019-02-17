@@ -43,21 +43,21 @@ def main():
     env.set_episodic_init('FIRE')
     env.set_frames_stack(frames_stack)
     env.set_single_life(True)
-    env.set_frames_action(4)
+    env.set_frames_action(config.solver.frames_action)
     num_actions = env.num_actions()
-    
+
     ################################################################
     # UTILITIES
-    replay = utils.VanillaReplay(obj_format='std_DQN', 
+    replay = utils.VanillaReplay(obj_format='std_DQN',
                                  capacity=config.replay.capacity,
                                  batch_size=config.replay.batch_size,
                                  init_size=config.replay.init_size)
-    
+
     get_thres = utils.framed_eps_greedy_func(eps_start=config.greedy.start,
                                              eps_end=config.greedy.end,
                                              num_decays=config.greedy.frames,
-                                             global_frames_func=env.global_frames)    
-    
+                                             global_frames_func=env.global_frames)
+
     ################################################################
     # AGENT
     q_net = Q_Network(input_size=(frames_stack, 84, 84),
@@ -78,11 +78,11 @@ def main():
     agent.reset()
     agent.set_exploration(get_sample=env.sample, get_thres=get_thres)
     agent.set_tensorboard(tensorboard)
-    agent.set_optimize_scheme(lr=config.solver.lr, 
-                              gamma=config.solver.gamma, 
-                              optimize_freq=config.solver.optimize_freq, 
+    agent.set_optimize_scheme(lr=config.solver.lr,
+                              gamma=config.solver.gamma,
+                              optimize_freq=config.solver.optimize_freq,
                               update_target_freq=config.solver.update_target_freq)
-    
+
     ################################################################
     # SEEDING
     random.seed(seed)
@@ -90,11 +90,11 @@ def main():
     torch.cuda.manual_seed(seed)
     torch.manual_seed(seed)
     env.seed(seed)
-    
+
     ################################################################
     # PRETRAIN
     # setting up initial random observations and replays during this session
-    print('now about to setup randomized [%s] required initial experience replay...' % 
+    print('now about to setup randomized [%s] required initial experience replay...' %
               agent.replay.init_size, flush=True)
     while True:
         env.reset()
@@ -106,8 +106,8 @@ def main():
             exp = agent.replay.form_obj(curr_state, action, next_state, reward)
             agent.replay.push(exp)
             curr_state = next_state
-            
-        print(time.strftime('[%Y-%m-%d-%H:%M:%S'), '%s]:' % os.environ['run_name'], 
+
+        print(time.strftime('[%Y-%m-%d-%H:%M:%S'), '%s]:' % os.environ['run_name'],
               'initializing experience replay progressing [%s/%s]' % (
               len(agent.replay), agent.replay.init_size), flush=True)
         if not done: break
@@ -115,12 +115,12 @@ def main():
         exp = agent.replay.form_obj(curr_state, action, None, reward)
         agent.replay.push(exp)
 
-    print(time.strftime('[%Y-%m-%d-%H:%M:%S'), '%s]:' % os.environ['run_name'], 
+    print(time.strftime('[%Y-%m-%d-%H:%M:%S'), '%s]:' % os.environ['run_name'],
           'experience replay initialization completed [%s/%s]' % (
           len(agent.replay), agent.replay.init_size), flush=True)
-    
+
     env.refresh()
-    
+
     ################################################################
     # TRAINING
     for _ in range(num_episodes):
@@ -140,9 +140,9 @@ def main():
             agent.optimize()
             if done: break
 
-        print(time.strftime('[%Y-%m-%d-%H:%M:%S'), '%s]:' % os.environ['run_name'], 
-              'episode [%s/%s], ep-reward [%s], threshold [%.2f], timesteps [%s], frames [%s]' % 
-              (env.global_episodes(), num_episodes, env.episodic_reward(), get_thres(), 
+        print(time.strftime('[%Y-%m-%d-%H:%M:%S'), '%s]:' % os.environ['run_name'],
+              'episode [%s/%s], ep-reward [%s], threshold [%.2f], timesteps [%s], frames [%s]' %
+              (env.global_episodes(), num_episodes, env.episodic_reward(), get_thres(),
                agent.global_timesteps(), env.global_frames()), flush=True)
         # recording via tensorboard
         tensorboard.add_scalar('episode/reward', env.episodic_reward(), env.global_episodes())

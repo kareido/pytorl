@@ -42,6 +42,7 @@ def main():
 
     env.set_episodic_init('FIRE')
     env.set_frames_stack(frames_stack)
+    env.set_single_life(True)
     env.set_frames_action(4)
     num_actions = env.num_actions()
 
