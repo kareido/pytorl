@@ -1,17 +1,13 @@
 ## PyToRL: PyTorch ToolBox for Reinforcement Learning
 
-### coding while learning RL from basics toward advanced level.  
-  
-  
-  
+
 current environment used for developing: 
 > gym == 0.10.11 with atari 
 > numpy == 1.14.3  
 > python == 3.6.5  
-> pytorch == 1.0.0  
+> pytorch == 1.0.1  
 > tensorboardX == 1.2  
 
-&nbsp;  
 &nbsp;  
 
 **run the example code via run_project script:**
