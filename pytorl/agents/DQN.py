@@ -46,7 +46,7 @@ class DQN_Agent(Agent):
                             update_target_freq=1, 
                            ):
         # set attributes
-        self.batch_size = replay.batch_size
+        self.batch_size = self.replay.batch_size
         self.lr = lr
         self.gamma = gamma
         self.optimize_freq = optimize_freq

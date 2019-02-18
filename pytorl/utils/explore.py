@@ -1,8 +1,8 @@
 import math
 
 
-def framed_eps_greedy_func(eps_start=1, eps_end=0.02, num_decays=100000, 
-                           global_frames_func=lambda: 1):
+def eps_greedy_func(eps_start=1, eps_end=0.02, num_decays=1, 
+                    global_frames_func=lambda: 1):
     """
     framed and linear decay of greedy threshold
     

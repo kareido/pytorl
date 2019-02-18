@@ -27,7 +27,7 @@ def main():
     ################################################################
     # RECORDER
     # tensorboard
-    tensorboard = utils.get_tensorboard_writer(logdir='..')
+    tensorboard = utils.tensorboard_writer(logdir='..')
     tensorboard.add_textfile('config', cfg_reader.config_path)
 
     ################################################################
@@ -48,15 +48,16 @@ def main():
 
     ################################################################
     # UTILITIES
-    replay = utils.VanillaReplay(obj_format='std_DQN',
+    replay = utils.LazyReplay(obj_format='std_DQN',
                                  capacity=config.replay.capacity,
                                  batch_size=config.replay.batch_size,
-                                 init_size=config.replay.init_size)
+                                 init_size=config.replay.init_size,
+                                 frames_stack=env.frames_stack())
 
-    get_thres = utils.framed_eps_greedy_func(eps_start=config.greedy.start,
-                                             eps_end=config.greedy.end,
-                                             num_decays=config.greedy.frames,
-                                             global_frames_func=env.global_frames)
+    get_thres = utils.eps_greedy_func(eps_start=config.greedy.start,
+                                      eps_end=config.greedy.end,
+                                      num_decays=config.greedy.frames,
+                                      global_frames_func=env.global_frames)
 
     ################################################################
     # AGENT
@@ -103,8 +104,7 @@ def main():
             action = env.sample()
             next_observ, reward, done, _ = env.step(action)
             next_state = env.state().clone()
-            exp = agent.replay.form_obj(curr_state, action, next_state, reward)
-            agent.replay.push(exp)
+            agent.replay.push(curr_state, action, next_state, reward)
             curr_state = next_state
 
         print(time.strftime('[%Y-%m-%d-%H:%M:%S'), '%s]:' % os.environ['run_name'],
@@ -112,8 +112,7 @@ def main():
               len(agent.replay), agent.replay.init_size), flush=True)
         if not done: break
         # save final action into reply buffer
-        exp = agent.replay.form_obj(curr_state, action, None, reward)
-        agent.replay.push(exp)
+        agent.replay.push(curr_state, action, None, reward)
 
     print(time.strftime('[%Y-%m-%d-%H:%M:%S'), '%s]:' % os.environ['run_name'],
           'experience replay initialization completed [%s/%s]' % (
@@ -134,8 +133,7 @@ def main():
                 next_state = env.state().clone()
             else:
                 next_state = None
-            exp = agent.replay.form_obj(curr_state, action, next_state, reward)
-            agent.replay.push(exp)
+            agent.replay.push(curr_state, action, next_state, reward)
             curr_state = next_state
             agent.optimize()
             if done: break
@@ -143,7 +141,7 @@ def main():
         print(time.strftime('[%Y-%m-%d-%H:%M:%S'), '%s]:' % os.environ['run_name'],
               'episode [%s/%s], ep-reward [%s], threshold [%.2f], timesteps [%s], frames [%s]' %
               (env.global_episodes(), num_episodes, env.episodic_reward(), get_thres(),
-               agent.global_timesteps(), env.global_frames()), flush=True)
+               agent.optimize_counter(), env.global_frames()), flush=True)
         # recording via tensorboard
         tensorboard.add_scalar('episode/reward', env.episodic_reward(), env.global_episodes())
         tensorboard.add_scalar('episode/thres', get_thres(), env.global_episodes())

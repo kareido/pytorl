@@ -20,7 +20,7 @@ class _TensorboardWriter(SummaryWriter):
         self.add_text(tag, content)
         
 
-def get_tensorboard_writer(logdir):
+def tensorboard_writer(logdir):
     writer = _TensorboardWriter(logdir)
     
     return writer

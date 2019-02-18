@@ -24,6 +24,6 @@ replay:
 record:
     save_freq: 100
     save_path: ./checkpoint
-    load_path: /Users/zhe/Desktop/
-    render: True
+    load_path: /Users/zhe/Desktop
+    render: False
     

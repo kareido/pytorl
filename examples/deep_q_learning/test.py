@@ -27,7 +27,7 @@ def main():
     ################################################################
     # RECORDER
     # tensorboard
-    tensorboard = utils.get_tensorboard_writer(logdir='..')
+    tensorboard = utils.tensorboard_writer(logdir='..')
     tensorboard.add_textfile('config', cfg_reader.config_path)
 
     ################################################################
@@ -53,7 +53,7 @@ def main():
     utils.init_network(q_net, config.record.load_path, 'q_net.pth', obj_name='q_network')
     q_net = q_net.to(device)
     agent = DQN_Agent(device=device, q_net=q_net)
-    agent.set_exploration(env.sample, utils.framed_eps_greedy_func(0.1, 0.1, 1))
+    agent.set_exploration(env.sample, utils.eps_greedy_func(config.greedy.end, config.greedy.end))
 
     ################################################################
     # SEEDING
