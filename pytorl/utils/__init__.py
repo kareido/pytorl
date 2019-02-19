@@ -6,3 +6,4 @@ from .io import init_network
 from .replay import LazyReplay
 from .replay import VanillaReplay
 from .recorder import tensorboard_writer
+from .tree import *

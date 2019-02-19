@@ -49,12 +49,14 @@ def main():
     replay = utils.VanillaReplay(obj_format='std_DQN',
                                  capacity=config.replay.capacity,
                                  batch_size=config.replay.batch_size,
-                                 init_size=config.replay.init_size)
+                                 init_size=config.replay.init_size
+                            )
 
     get_thres = utils.eps_greedy_func(eps_start=config.greedy.start,
                                       eps_end=config.greedy.end,
                                       num_decays=config.greedy.frames,
-                                      global_frames_func=env.global_frames)
+                                      global_frames_func=env.global_frames
+                                 )
 
     ################################################################
     # AGENT
@@ -72,14 +74,17 @@ def main():
                       target_net = target_net,
                       loss_func = loss_func,
                       optimizer_func = optimizer_func,
-                      replay = replay)
+                      replay = replay
+                 )
+    
     agent.reset()
     agent.set_exploration(get_sample=env.sample, get_thres=get_thres)
     agent.set_tensorboard(tensorboard)
     agent.set_optimize_scheme(lr=config.solver.lr,
                               gamma=config.solver.gamma,
                               optimize_freq=config.solver.optimize_freq,
-                              update_target_freq=config.solver.update_target_freq)
+                              update_target_freq=config.solver.update_target_freq
+                         )
 
     ################################################################
     # SEEDING

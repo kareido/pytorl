@@ -82,17 +82,15 @@ class LazyReplay(_ExpReplay):
         self.memory = [None] * self.capacity
         self._idx = 0
 
+    
     def clear(self):
         self.memory = [None] * self.capacity
         self._idx = 0
         self._valid_idx.clear()
     
+    
     def __len__(self):
         return len(self._valid_idx)
-
-    
-    def _memsize(self):
-        return len(self.memory)
     
     
     def push(self, *obj):
@@ -164,7 +162,7 @@ class PrioritizedReplay(_ExpReplay):
         return random.sample(self.memory, self.batch_size)
     
     def form_obj(self, *args):
-        return self.obj_type(*args)  
+        return self.obj_type(*args)
     
     
     
