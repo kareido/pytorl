@@ -1,6 +1,7 @@
 import random
 from collections import deque, namedtuple
 import torch
+from ._tree import SumSegmentTree, MinSegmentTree
 
 
 class _ExpReplay:
