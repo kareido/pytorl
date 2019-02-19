@@ -1,10 +1,13 @@
 seed: 123
 solver:
     env: PongNoFrameskip-v4
+    agent: DoubleDQN_Agent
     lr: 0.0001
     gamma: 0.99
     episodes: 4000
+    # this specifies how much frames stacked for one input
     frames_stack: 4
+    # this specifies how many frames an action lasts
     frames_action: 4
     # note: optimize_freq w.r.t timesteps
     optimize_freq: 1

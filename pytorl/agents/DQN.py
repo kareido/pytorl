@@ -8,13 +8,13 @@ from ._base_agent import Agent
 
 class DQN_Agent(Agent):
     def __init__(self, 
-                 device, 
-                 q_net, 
-                 target_net=None, 
-                 loss_func=None, 
-                 optimizer_func=None,  
-                 replay=None, 
-                ):
+         device, 
+         q_net, 
+         target_net=None, 
+         loss_func=None, 
+         optimizer_func=None,  
+         replay=None, 
+        ):
         self.device = device
         self.q_net = q_net
         self.target_net = target_net
@@ -41,10 +41,10 @@ class DQN_Agent(Agent):
     
     
     def set_optimize_scheme(self,
-                            lr=.0001, gamma=.99, 
-                            optimize_freq=1, 
-                            update_target_freq=1, 
-                           ):
+            lr=.0001, gamma=.99, 
+            optimize_freq=1, 
+            update_target_freq=1, 
+        ):
         # set attributes
         self.batch_size = self.replay.batch_size
         self.lr = lr
@@ -52,8 +52,9 @@ class DQN_Agent(Agent):
         self.optimize_freq = optimize_freq
         self.update_target_freq = update_target_freq
         self.optimizer = self._get_optimizer(
-                            self.q_net.parameters(), 
-                            lr=self.lr)
+            self.q_net.parameters(), 
+            lr=self.lr
+        )
     
     
     def reset(self):
@@ -96,7 +97,12 @@ class DQN_Agent(Agent):
             return curr_q_val.argmax(1).item()
         else:
             return self.get_sample()
-        
+    
+    
+    """ should check if non_final_next is None when call this method"""
+    def _non_final_targeted_q_values(self, non_final_next):
+        return self.target_net(non_final_next).max(1)[0].detach()
+    
         
     def optimize(self):
         self.optimize_timer('add')
@@ -116,8 +122,7 @@ class DQN_Agent(Agent):
         # compute Q values via stationary target network, this 'try' is to avoid the situation 
         # when all next states are None
         try:
-            targeted_q_values[non_final_mask] = self.target_net(
-                                                    non_final_next).max(1)[0].detach()
+            targeted_q_values[non_final_mask] = self._non_final_targeted_q_values(non_final_next)
         except TypeError: print('encountered a case where all next states are None', flush=True)
         # compute the expected Q values
         expected_q_values = (targeted_q_values * self.gamma) + rewards
@@ -144,5 +149,39 @@ class DQN_Agent(Agent):
                                    predicted_q_values_mean, self.optimize_counter())
             self._tensorboard.add_scalar('timestep/expected_q_values-mean', 
                                    expected_q_values_mean, self.optimize_counter())
-
         
+        
+            
+class DoubleDQN_Agent(DQN_Agent):
+    def __init__(self, 
+         device, 
+         q_net, 
+         target_net=None, 
+         loss_func=None, 
+         optimizer_func=None,  
+         replay=None, 
+        ):
+        super(DoubleDQN_Agent, self).__init__(
+            device, q_net, 
+            target_net=target_net, 
+            loss_func=loss_func, 
+            optimizer_func=optimizer_func,  
+            replay=replay, 
+        )
+    
+    
+    """ should check if non_final_next is None when call this method"""
+    def _non_final_targeted_q_values(self, non_final_next):
+        # must view it to match the shape
+        next_actions = self.q_net(non_final_next).max(1)[1].view(-1, 1)
+        # must squeeze it to make it a batch of scalar values
+        return self.target_net(non_final_next).gather(1, next_actions).squeeze()
+    
+    
+    
+    
+    
+    
+    
+    
+    

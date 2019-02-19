@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import pytorl.utils as utils
 
 
 """
@@ -15,12 +14,6 @@ class Agent:
         self._optimize_counter = 0
         self._optimize_timer = 0
         self._tensorboard = None
-    
-    def save_pth(self, obj, path, filename=None, obj_name=None):
-        utils.save_pth(obj, path, filename=filename, obj_name=obj_name)
-        
-    def load_pth(self, path, filename=None, obj_name=None):
-        utils.load_pth(path, filename=filename, obj_name=obj_name)
         
         
     def optimize_counter(self, pattern=None, num=1):

@@ -2,6 +2,7 @@ import argparse
 import yaml
 import torch.nn.functional as F
 import torch.optim as optim
+import pytorl.agents as agents
 
 
 class _DotConfig(dict):
@@ -84,5 +85,8 @@ class ConfigReader:
     
     def get_optimizer_func(self, attr):
         return getattr(optim, attr)
+    
+    def get_agent_func(self, attr):
+        return getattr(agents, attr)
     
     
