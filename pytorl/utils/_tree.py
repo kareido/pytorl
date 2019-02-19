@@ -17,7 +17,7 @@ class _SegmentTree:
         self._value = [default_elem for _ in range(self._tree_len)]
         
         self._idx_to_leaf = []
-        self._leaf_to_idx = [None] * capacity
+        self._leaf_to_idx = [None] * self._tree_len
         self._init_mapping()
         # seedup indexing
         self._idx_to_leaf = tuple(self._idx_to_leaf)
