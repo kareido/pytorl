@@ -35,7 +35,7 @@ class _SegmentTree:
     def _init_mapping(self, idx=0):
         if 2 * idx + 1 >= self._tree_len: 
             self._idx_to_leaf.append(idx)
-            self._leaf_to_idx[idx - self.capacity + 1] = len(self._idx_to_leaf)
+            self._leaf_to_idx[idx - self.capacity + 1] = len(self._idx_to_leaf) - 1
             return
         self._init_mapping(2 * idx + 1)
         self._init_mapping(2 * idx + 2)
