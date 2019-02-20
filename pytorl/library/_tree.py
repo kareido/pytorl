@@ -107,7 +107,7 @@ class SumSegmentTree(_SegmentTree):
         idx: int
             highest index satisfying the prefixsum constraint
         """
-        assert 0 <= prefixsum <= self.sum() + 1e-5, 'prefixsum out of range'
+        assert 0 <= prefixsum <= self.sum() + 1e-6, 'prefixsum out of range'
         idx = 0
         while idx < self._tree_len - self.capacity:  # while non-leaf
             if self._value[2 * idx + 1] >= prefixsum:
@@ -118,6 +118,7 @@ class SumSegmentTree(_SegmentTree):
         return self._leaf_to_idx[idx - self.capacity + 1]
 
 
+    
 class MinSegmentTree(_SegmentTree):
     def __init__(self, capacity):
         super(MinSegmentTree, self).__init__(

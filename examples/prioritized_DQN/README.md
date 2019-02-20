@@ -1,4 +1,4 @@
-## Natual & Double Deep Q-learning
+## Prioritized & Dueling DQN
 
 This DQN example contains following implementations:  
 

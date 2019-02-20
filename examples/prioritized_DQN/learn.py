@@ -4,9 +4,11 @@ import time
 import numpy as np
 import torch
 import torchvision.transforms as T
-from pytorl.envs import make_ctrl_env
-from pytorl.networks import Q_MLP
+from pytorl.envs import make_atari_env
+from pytorl.agents import PrioritizedDQN_Agent
+from pytorl.networks import Q_Network
 import pytorl.utils as utils
+import pytorl.library as lib
 
 os.environ.setdefault('run_name', 'default')
 
@@ -19,7 +21,7 @@ def main():
 
     ################################################################
     # CONFIG
-    cfg_reader = utils.ConfigReader(default='run_project/gym_config.yaml')
+    cfg_reader = utils.ConfigReader(default='run_project/config.yaml')
     config = cfg_reader.get_config()
     seed, num_episodes = config.seed, config.solver.episodes
 
@@ -30,28 +32,36 @@ def main():
     tensorboard.add_textfile('config', cfg_reader.config_path)
 
     ################################################################
-    # CLASSIC CONTROL ENVIRONMENT
+    # ATARI ENVIRONMENT
+    resize = T.Compose(
+        [T.ToPILImage(),
+        T.Grayscale(1),
+        T.Resize((84, 84), interpolation=3),
+        T.ToTensor()]
+    )
     frames_stack = config.solver.frames_stack
-    env = make_ctrl_env(config.solver.env, render=config.record.render)
-    # seeding
-    env.seed(seed)
+    env = make_atari_env(
+        config.solver.env, 
+        resize,
+        render=config.record.render
+    )
+
+    env.set_episodic_init('FIRE')
     env.set_frames_stack(frames_stack)
+    env.set_single_life(True)
     env.set_frames_action(config.solver.frames_action)
     num_actions = env.num_actions()
-    # try decap the environment limit
-#     try:
-#         env._max_episode_steps = 10000
-#     except: pass
 
     ################################################################
     # UTILITIES
-    replay = utils.VanillaReplay(
-        capacity=config.replay.capacity,
-        batch_size=config.replay.batch_size,
-        init_size=config.replay.init_size
+    get_beta = lib.beta_priority_func(
+        beta_start=config.replay.beta.start,
+        beta_end=config.replay.beta.end,
+        num_incres=config.replay.beta.frames,
+        global_frames_func=env.global_frames
     )
 
-    get_thres = utils.eps_greedy_func(
+    get_thres = lib.eps_greedy_func(
         eps_start=config.greedy.start,
         eps_end=config.greedy.end,
         num_decays=config.greedy.frames,
@@ -60,28 +70,33 @@ def main():
 
     ################################################################
     # AGENT
-    q_net = Q_MLP(input_size=(frames_stack, env.observ_shape()),
+    q_net = Q_Network(input_size=(frames_stack, 84, 84),
                       num_actions=num_actions).to(device)
 
-    target_net = Q_MLP(input_size=(frames_stack, env.observ_shape()),
-                      num_actions=num_actions).to(device)
+    target_net = Q_Network(input_size=(frames_stack, 84, 84),
+                           num_actions=num_actions).to(device)
 
     loss_func = cfg_reader.get_loss_func(config.solver.loss)
     optimizer_func = cfg_reader.get_optimizer_func(config.solver.optimizer)
-    dqn_agent_func = cfg_reader.get_agent_func(config.solver.agent)
-
-    agent = dqn_agent_func(
+    
+    agent = PrioritizedDQN_Agent(
         device = device,
         q_net = q_net,
         target_net = target_net,
         loss_func = loss_func,
         optimizer_func = optimizer_func,
-        replay = replay
-    )
+     )
     
     agent.reset()
     agent.set_exploration(get_sample=env.sample, get_thres=get_thres)
     agent.set_tensorboard(tensorboard)
+    agent.set_prioritized_replay(
+        capacity=config.replay.capacity, 
+        batch_size=config.replay.batch_size, 
+        init_size=config.replay.init_size, 
+        alpha=config.replay.alpha,
+        beta_func=get_beta, 
+        )
     agent.set_optimize_scheme(
         lr=config.solver.lr,
         gamma=config.solver.gamma,
@@ -113,14 +128,14 @@ def main():
             curr_state = next_state
 
         print(time.strftime('[%Y-%m-%d-%H:%M:%S'), '%s]:' % os.environ['run_name'],
-              'initializing experience replay progressing [%s/%s]' % (
+              'initializing prioritized experience replay progressing [%s/%s]' % (
               len(agent.replay), agent.replay.init_size), flush=True)
         if not done: break
         # save final action into reply buffer
         agent.replay.push(curr_state, action, None, reward)
 
     print(time.strftime('[%Y-%m-%d-%H:%M:%S'), '%s]:' % os.environ['run_name'],
-          'experience replay initialization completed [%s/%s]' % (
+          'prioritized experience replay initialization completed [%s/%s]' % (
           len(agent.replay), agent.replay.init_size), flush=True)
 
     env.refresh()
@@ -144,9 +159,10 @@ def main():
             if done: break
 
         print(time.strftime('[%Y-%m-%d-%H:%M:%S'), '%s]:' % os.environ['run_name'],
-              'episode [%s/%s], ep-reward [%s], threshold [%.2f], timesteps [%s], frames [%s]' %
-              (env.global_episodes(), num_episodes, env.episodic_reward(), get_thres(),
-               agent.optimize_counter(), env.global_frames()), flush=True)
+              'episode [%s/%s], ep-reward [%s], eps [%.2f], '
+              'beta [%.2f], timesteps [%s], frames [%s]' %
+              (env.global_episodes(), num_episodes, env.episodic_reward(), 
+               get_thres(), get_beta(), agent.optimize_counter(), env.global_frames()), flush=True)
         # recording via tensorboard
         tensorboard.add_scalar('episode/reward', env.episodic_reward(), env.global_episodes())
         tensorboard.add_scalar('episode/thres', get_thres(), env.global_episodes())

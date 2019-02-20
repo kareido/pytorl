@@ -1,5 +1,5 @@
 # jupyter notebook for testing
-test_playground.ipynb
+test_playground*.ipynb
 debug_playground*.ipynb
 visualization.ipynb
 .ipynb_checkpoints

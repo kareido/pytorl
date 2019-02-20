@@ -1,33 +1,36 @@
 seed: 123
 solver:
-    env: CartPole-v1
-    agent: DoubleDQN_Agent
-    lr: 0.00025
-    gamma: 0.999
-    episodes: 1000000
+    env: PongNoFrameskip-v4
+    lr: 0.0001
+    gamma: 0.99
+    episodes: 4000
     # this specifies how much frames stacked for one input
     frames_stack: 4
     # this specifies how many frames an action lasts
-    frames_action: 1
+    frames_action: 4
     # note: optimize_freq w.r.t timesteps
     optimize_freq: 1
     # note: update_target_freq w.r.t timesteps
-    update_target_freq: 2000
+    update_target_freq: 1000
     loss: smooth_l1_loss
     optimizer: Adam
 greedy:
-    start: 0.9
-    end: 0.05
-    frames: 4000
+    start: 1
+    end: 0.02
+    frames: 100000
 replay:
     # note: capacity w.r.t states
     capacity: 100000
-    init_size: 10000
-    batch_size: 128
+    init_size: default
+    batch_size: 32
+    alpha: 1
+    beta:
+        start: 0.02
+        end: 1
+        frames: 100000
 record:
-    save_freq: 10000
+    save_freq: 100
     save_path: ./checkpoint
-    load_path: ./checkpoint
+    load_path: /Users/zhe/Desktop
     render: False
     
-

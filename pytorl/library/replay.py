@@ -138,21 +138,35 @@ class LazyReplay(_ExpReplay):
 
 
 class PrioritizedReplay(_ExpReplay):
-    def __init__(self, capacity=None, batch_size=32, init_size=None, alpha=1):
+    def __init__(
+        self, 
+        capacity=None, 
+        batch_size=32, 
+        init_size=None, 
+        alpha=1, 
+        beta_func=lambda: 0, 
+        eps=1e-6
+    ):
         super(PrioritizedReplay, self).__init__(capacity, batch_size, init_size)
-        assert alpha > 0
+        assert alpha > 0 and capacity is not None
         self._alpha = alpha
-        self.obj_type = namedtuple('PriorExp', ('curr_state', 'action', 'next_state', 'reward'))
+        self.in_obj_type = namedtuple('Exp', ('curr_state', 'action', 'next_state', 'reward'))
+        self.out_obj_type = namedtuple('PriorExp', (
+            'curr_state', 'action', 'next_state', 'reward', 'weight', 'index'))
         self.memory = []
         self._idx = 0
         self._sum_prior = SumSegmentTree(self.capacity)
         self._min_prior = MinSegmentTree(self.capacity)
         self._max_prior = 1
+        self.get_beta = beta_func
+        self.eps = eps
+        
         
     def clear(self):
-        self.memory = [None] * self.capacity
+        self.memory = []
         self._idx = 0
-        self._valid_idx.clear()
+        self._sum_prior = SumSegmentTree(self.capacity)
+        self._min_prior = MinSegmentTree(self.capacity)
     
     
     def __len__(self):
@@ -160,7 +174,7 @@ class PrioritizedReplay(_ExpReplay):
     
     
     def push(self, *obj):
-        processed_obj = self.form_obj(*obj)
+        processed_obj = self._form_input_obj(*obj)
         if len(self) < self.capacity:
             self.memory.append(processed_obj)
         else:
@@ -170,19 +184,48 @@ class PrioritizedReplay(_ExpReplay):
         self._min_prior[self._idx] = self._sum_prior[self._idx] = priority
         self._idx = (self._idx + 1) % self.capacity
     
+    
+    def _sample_indices(self):
+        indices = []
+        for _ in range(self.batch_size):
+            # sum(a, b): a is inclusive whereas b is exclusive
+            mass = random.random() * self._sum_prior.sum(0, len(self))
+            idx = self._sum_prior.find_prefixsum_idx(mass)
+            indices.append(idx)
+        return indices
+    
+    
     def sample(self):
-        return random.sample(self.memory, self.batch_size)
+        beta = self.get_beta()
+        indices = self._sample_indices()
+        weights = []
+        ret_list = []
+        p_min = self._min_prior.min() / self._sum_prior.sum()
+        max_weight = (p_min * len(self)) ** (-beta)
+
+        for idx in indices:
+            p_sample = self._sum_prior[idx] / self._sum_prior.sum()
+            weight = (p_sample * len(self)) ** (-beta) / max_weight
+            ret_list.append(tuple(list(self.memory[idx]) + [weight, idx]))
+        
+        return ret_list
     
+    
+    def update_priorities(self, idxes, priorities):
+        assert len(idxes) == len(priorities)
+        for idx, priority in zip(idxes, priorities):
+            assert priority > 0 and 0 <= idx < len(self.memory)
+            self._sum_prior[idx] = priority ** self._alpha
+            self._min_prior[idx] = priority ** self._alpha
+            self._max_prior = max(self._max_prior, priority)
+    
+    
+    def _form_input_obj(self, *args):
+        return self.in_obj_type(*args)
+        
+        
     def form_obj(self, *args):
-        return self.obj_type(*args)
-    
-    
-    
-    
-    
-    
-    
-    
-    
+        return self.out_obj_type(*args)
+
     
     

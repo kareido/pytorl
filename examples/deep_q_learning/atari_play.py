@@ -7,6 +7,7 @@ import torchvision.transforms as T
 from pytorl.envs import make_atari_env
 from pytorl.networks import Q_Network
 import pytorl.utils as utils
+import pytorl.library as lib
 
 os.environ.setdefault('run_name', 'default')
 
@@ -52,14 +53,14 @@ def main():
 
     ################################################################
     # UTILITIES
-    replay = utils.LazyReplay(
+    replay = lib.LazyReplay(
         capacity=config.replay.capacity,
         batch_size=config.replay.batch_size,
         init_size=config.replay.init_size,
         frames_stack=env.frames_stack()
     )
 
-    get_thres = utils.eps_greedy_func(
+    get_thres = lib.eps_greedy_func(
         eps_start=config.greedy.start,
         eps_end=config.greedy.end,
         num_decays=config.greedy.frames,
