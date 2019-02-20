@@ -42,6 +42,7 @@ class _SegmentTree:
     
     def _traverse_reduce(self, start, end, curr_node, node_start, node_end):
         if start == node_start and end == node_end: return self._value[curr_node]
+        if 2 * curr_node + 1 >= self._tree_len: return self._value[curr_node]
         mid = (node_start + node_end) // 2
         if end <= mid:
             return self._traverse_reduce(start, end, 2 * curr_node + 1, node_start, mid)

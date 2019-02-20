@@ -80,12 +80,12 @@ def main():
     dqn_agent_func = cfg_reader.get_agent_func(config.solver.agent)
     
     agent = dqn_agent_func(
-        device = device,
-        q_net = q_net,
-        target_net = target_net,
-        loss_func = loss_func,
-        optimizer_func = optimizer_func,
-        replay = replay
+        device=device,
+        q_net=q_net,
+        target_net=target_net,
+        loss_func=loss_func,
+        optimizer_func=optimizer_func,
+        replay=replay
      )
     
     agent.reset()

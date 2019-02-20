@@ -1,6 +1,8 @@
 seed: 123
 solver:
     env: PongNoFrameskip-v4
+    double_dqn: False
+    dueling: True
     lr: 0.0001
     gamma: 0.99
     episodes: 4000
@@ -23,7 +25,7 @@ replay:
     capacity: 100000
     init_size: default
     batch_size: 32
-    alpha: 1
+    alpha: 0
     beta:
         start: 0.02
         end: 1

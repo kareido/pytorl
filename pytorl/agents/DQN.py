@@ -73,8 +73,6 @@ class DQN_Agent(Agent):
         if self.target_net: self.update_target()
         self.q_net.train(True)
         if self.target_net: self.target_net.train(False)
-        if self._get_optimizer and self.replay: self.set_optimize_scheme()
-        self.set_exploration()
     
     
     def update_target(self):

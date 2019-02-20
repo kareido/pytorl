@@ -3,6 +3,7 @@ import yaml
 import torch.nn.functional as F
 import torch.optim as optim
 import pytorl.agents as agents
+import pytorl.networks as networks
 
 
 class _DotConfig(dict):
@@ -89,4 +90,6 @@ class ConfigReader:
     def get_agent_func(self, attr):
         return getattr(agents, attr)
     
+    def get_network_func(self, attr):
+        return getattr(networks, attr)
     

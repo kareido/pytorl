@@ -148,7 +148,7 @@ class PrioritizedReplay(_ExpReplay):
         eps=1e-6
     ):
         super(PrioritizedReplay, self).__init__(capacity, batch_size, init_size)
-        assert alpha > 0 and capacity is not None
+        assert alpha >= 0 and capacity is not None
         self._alpha = alpha
         self.in_obj_type = namedtuple('Exp', ('curr_state', 'action', 'next_state', 'reward'))
         self.out_obj_type = namedtuple('PriorExp', (

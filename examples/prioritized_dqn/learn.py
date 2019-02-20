@@ -6,7 +6,7 @@ import torch
 import torchvision.transforms as T
 from pytorl.envs import make_atari_env
 from pytorl.agents import PrioritizedDQN_Agent
-from pytorl.networks import Q_Network
+from pytorl.networks import Dueling_DQN, Q_Network
 import pytorl.utils as utils
 import pytorl.library as lib
 
@@ -70,10 +70,15 @@ def main():
 
     ################################################################
     # AGENT
-    q_net = Q_Network(input_size=(frames_stack, 84, 84),
+    if config.solver.dueling:
+        network = Dueling_DQN
+    else:
+        network = Q_Network
+    
+    q_net = network(input_size=(frames_stack, 84, 84),
                       num_actions=num_actions).to(device)
 
-    target_net = Q_Network(input_size=(frames_stack, 84, 84),
+    target_net = network(input_size=(frames_stack, 84, 84),
                            num_actions=num_actions).to(device)
 
     loss_func = cfg_reader.get_loss_func(config.solver.loss)
@@ -87,9 +92,6 @@ def main():
         optimizer_func = optimizer_func,
      )
     
-    agent.reset()
-    agent.set_exploration(get_sample=env.sample, get_thres=get_thres)
-    agent.set_tensorboard(tensorboard)
     agent.set_prioritized_replay(
         capacity=config.replay.capacity, 
         batch_size=config.replay.batch_size, 
@@ -97,6 +99,9 @@ def main():
         alpha=config.replay.alpha,
         beta_func=get_beta, 
         )
+    agent.reset()
+    agent.set_exploration(get_sample=env.sample, get_thres=get_thres)
+    agent.set_tensorboard(tensorboard)
     agent.set_optimize_scheme(
         lr=config.solver.lr,
         gamma=config.solver.gamma,
