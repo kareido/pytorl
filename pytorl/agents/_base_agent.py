@@ -1,11 +1,12 @@
 import torch
 import torch.nn as nn
+from pytorl.networks import io
 
 
 """
 this base agent contains:
     1) save/load functionality
-    2) @TODO: tensorboard utilities
+    2) tensorboard utilities
 """
 
 
@@ -15,6 +16,11 @@ class Agent:
         self._optimize_timer = 0
         self._tensorboard = None
         
+    def save_pth(self, obj, path, filename=None, obj_name=None):
+        io.save_pth(obj, path, filename=filename, obj_name=obj_name)
+        
+    def load_pth(self, path, filename=None, obj_name=None):
+        io.load_pth(path, filename=filename, obj_name=obj_name)
         
     def optimize_counter(self, pattern=None, num=1):
         assert type(num) == int and num >= 0
