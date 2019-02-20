@@ -17,7 +17,7 @@ class _SegmentTree:
         self._value = [default_elem for _ in range(self._tree_len)]
         
         self._idx_to_leaf = []
-        self._leaf_to_idx = [None] * self._tree_len
+        self._leaf_to_idx = [None] * self.capacity
         self._init_mapping()
         # seedup indexing
         self._idx_to_leaf = tuple(self._idx_to_leaf)
@@ -35,7 +35,7 @@ class _SegmentTree:
     def _init_mapping(self, idx=0):
         if 2 * idx + 1 >= self._tree_len: 
             self._idx_to_leaf.append(idx)
-            self._leaf_to_idx[idx] = len(self._idx_to_leaf)
+            self._leaf_to_idx[idx - self.capacity + 1] = len(self._idx_to_leaf)
             return
         self._init_mapping(2 * idx + 1)
         self._init_mapping(2 * idx + 2)
@@ -115,7 +115,7 @@ class SumSegmentTree(_SegmentTree):
             else:
                 prefixsum -= self._value[2 * idx + 1]
                 idx = 2 * idx + 2
-        return self._leaf_to_idx[idx]
+        return self._leaf_to_idx[idx - self.capacity + 1]
 
 
 class MinSegmentTree(_SegmentTree):

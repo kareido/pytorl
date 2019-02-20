@@ -46,7 +46,6 @@ def main():
     ################################################################
     # UTILITIES
     replay = utils.VanillaReplay(
-        obj_format='std_DQN',
         capacity=config.replay.capacity,
         batch_size=config.replay.batch_size,
         init_size=config.replay.init_size
