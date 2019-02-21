@@ -64,7 +64,7 @@ class Dueling_MLP(nn.Module):
         return x
     
     
-    def forward(elf, x):
+    def forward(self, x):
         x = self.features(x)
         adv = F.relu(self.adv1(x))
         adv = self.adv2(adv)

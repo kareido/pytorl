@@ -7,7 +7,7 @@ import torchvision.transforms as T
 from pytorl.envs import make_ctrl_env
 from pytorl.networks import Q_MLP
 import pytorl.utils as utils
-import pytorl.library as lib
+import pytorl.lib as lib
 
 os.environ.setdefault('run_name', 'default')
 

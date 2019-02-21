@@ -3,7 +3,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.nn.utils import clip_grad_value_
-from pytorl.library import PrioritizedReplay
+from pytorl.lib import PrioritizedReplay
 from ._base_agent import Agent
 
 
