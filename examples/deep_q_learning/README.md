@@ -18,7 +18,7 @@ In this repo the only difference is that I "maxpooled" through all skipped frame
 This DQN is also known as "natural DQN".  
 
 #### 2. Deep Reinforcement Learning with Double Q-learning
-Source: https://www.nature.com/articles/nature14236  
+Source: https://arxiv.org/abs/1509.06461  
 
 This is the improved version of deep q-learning trying to tackle the problem of agent overestimating action values in the preivous natural DQN.
 
