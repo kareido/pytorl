@@ -1,0 +1,39 @@
+seed: 123
+solver:
+    env: PongNoFrameskip-v4
+    double_dqn: True
+    dueling: False
+    lr: 0.0001
+    gamma: 0.99
+    episodes: 4000
+    # this specifies how much frames stacked for one input
+    frames_stack: 4
+    # this specifies how many frames an action lasts
+    frames_action: 4
+    # note:gradient_freq w.r.t timesteps
+    gradient_freq: 4
+    push_freq: 4
+    # note: update_target_freq w.r.t timesteps
+    update_target_freq: 4000
+    loss: smooth_l1_loss
+    optimizer: Adagrad
+greedy:
+    start: 1
+    end: 0.02
+    frames: 100000
+replay:
+    # note: capacity w.r.t states
+    capacity: 500000
+    init_size: default 
+    batch_size: 32
+    alpha: 0
+    beta:
+        start: 0.4
+        end: 1
+        frames: 100000
+record:
+    save_freq: 60000
+    save_path: ./checkpoint
+    load_path: /Users/zhe/Desktop
+    render: False
+    

@@ -16,6 +16,7 @@ class DQN_Agent(Agent):
          optimizer_func=None,  
          replay=None, 
         ):
+        super(DQN_Agent, self).__init__()
         self.device = device
         self.q_net = q_net
         self.target_net = target_net
@@ -81,7 +82,7 @@ class DQN_Agent(Agent):
     
     def set_device(self):
         self.q_net = self.q_net.to(self.device)
-        self.target_net = self.target_net.to(self.device)
+        if self.target_net: self.target_net = self.target_net.to(self.device)
         
     
     def next_action(self, get_state):
@@ -189,7 +190,6 @@ class PrioritizedDQN_Agent(DQN_Agent):
          target_net=None, 
          loss_func=None, 
          optimizer_func=None, 
-         replay=None, 
          double_dqn=True, 
         ):
         super(PrioritizedDQN_Agent, self).__init__(
@@ -198,7 +198,7 @@ class PrioritizedDQN_Agent(DQN_Agent):
             loss_func=loss_func, 
             optimizer_func=optimizer_func,  
         )
-        self.replay = replay
+        self.replay = None
         if double_dqn:
             self._non_final_targeted_q_values = self._double_dqn_q_values
         else:
@@ -274,7 +274,6 @@ class PrioritizedDQN_Agent(DQN_Agent):
             self.update_target()
         # tensorboard recording
         self._record(rewards, q_net_loss, predicted_q_values, expected_q_values)
-    
     
     
     
