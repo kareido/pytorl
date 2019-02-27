@@ -3,6 +3,11 @@ import torch.distributed as dist
 from torch.nn.utils import parameters_to_vector, vector_to_parameters
 
 
+"""
+[!]WARNING: WORK IN PROGRESS, DO NOT USE
+"""
+
+
 def send_list(tensor_list, dst, group=None, tag=0):
     if group is None: 
         if dist.get_world_size() == 1: return

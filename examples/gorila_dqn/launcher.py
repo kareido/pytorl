@@ -1,8 +1,8 @@
 import os
 import pytorl.distributed as rl_dist
 import torch.distributed as dist
-from learner import dqn_proc
-from server import ps_proc
+from client import param_client_proc
+from server import param_server_proc
 
 
 os.environ.setdefault('run_name', 'default')
@@ -14,9 +14,9 @@ def main():
     
     if rank == master_rank:
         print('master service running at rank [%s]' % rank, flush=True)
-        ps_proc(master_rank, worker_list)
+        param_server_proc(master_rank, worker_list)
     else:
-        dqn_proc(master_rank, worker_group)
+        param_client_proc(master_rank, worker_group)
     
 
 if __name__ == '__main__':

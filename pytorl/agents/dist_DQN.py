@@ -4,24 +4,24 @@ import numpy as np
 import torch
 import torch.autograd as autograd
 import torch.distributed as dist
-import pytorl.distributed as rl_dist
+from pytorl.distributed import get_master_rank
 import torch.nn as nn
 from torch.nn.utils import parameters_to_vector, vector_to_parameters
 from .DQN import PrioritizedDQN_Agent
 
 
-class GorilaDQN_Agent(PrioritizedDQN_Agent):
+class _GorilaDQN_BaseAgent(PrioritizedDQN_Agent):
     def __init__(
         self, 
         device, 
-        q_net, 
+        q_net,
         target_net=None, 
         loss_func=None, 
         optimizer_func=None, 
         double_dqn=True, 
-        momentum=0.1
-        ):
-        super(GorilaDQN_Agent, self).__init__(
+        comm='cpu'
+    ):
+        super(_GorilaDQN_BaseAgent, self).__init__(
              device, 
              q_net, 
              target_net=target_net, 
@@ -30,40 +30,23 @@ class GorilaDQN_Agent(PrioritizedDQN_Agent):
              double_dqn=double_dqn, 
         )
         self.replay = None
+        self.comm = comm
         if double_dqn:
             self._non_final_targeted_q_values = self._double_dqn_q_values
         else:
             self._non_final_targeted_q_values = self._natural_dqn_q_values
         
+        # distributed env
         self.rank, self.world_size = dist.get_rank(), dist.get_world_size()
-        self.master_rank = rl_dist.get_master_rank()
+        self.master_rank = get_master_rank()
+        self.num_clients = self.world_size - 1
+        
         self._gradient_counter = 0
         self._gradient_timer = 0
-        self.loss_running_mean = 0
-        self.loss_running_std = 0
-        self.momentum = momentum
         self.param_vector = parameters_to_vector(self.q_net.parameters()).zero_().detach()
-        self.param_rank = torch.arange(len(self.param_vector)).to(self.device)
-        self.padded_len = (len(self.param_rank) + self.world_size - 1) // (self.world_size - 1)
-        if self.rank != self.master_rank:
-            self.shard = self.rank if self.rank <= self.master_rank else self.rank - 1
-            self.shard_idx = self.param_rank[(self.param_rank % (self.world_size - 1)) == self.shard]
-            if len(self.shard_idx) < self.padded_len:
-                self.shard_idx = torch.cat(
-                    (self.shard_idx, torch.tensor([self.shard]).to(self.device)))
-                assert len(self.shard_idx) == self.padded_len
-            self.gradient = self.param_vector[self.shard_idx]
-        else:
-            self.shard_list = \
-                list(range(self.master_rank)) + list(range(self.master_rank, self.world_size - 1))
-            self.shard_idx = [None] * (self.world_size - 1)
-            for idx in self.shard_list:
-                self.shard_idx[idx] = self.param_rank[(self.param_rank % (self.world_size - 1)) == idx]
-                if len(self.shard_idx[idx]) < self.padded_len:
-                    self.shard_idx[idx] = torch.cat(
-                        (self.shard_idx[idx], torch.tensor([idx]).to(self.device)))
-                    assert len(self.shard_idx[idx]) == self.padded_len
-            self.gradient = copy.deepcopy(self.q_net)
+        self.param_len = len(self.param_vector)
+        self.shard_len = (self.param_len + self.num_clients - 1) // self.num_clients
+
         
         
     def gradient_counter(self, pattern=None, num=1):
@@ -88,21 +71,50 @@ class GorilaDQN_Agent(PrioritizedDQN_Agent):
         super().reset()
         self.gradient_counter('set', 0)
         self.gradient_timer('set', 0)
-        self.loss_running_mean = 0
-        self.loss_running_std = 0
-    
-    
-    def set_gradient_scheme(
-            self,
-            gamma=.99, 
-            gradient_freq=1, 
+        
+        
+        
+class GorilaDQN_ServerAgent(_GorilaDQN_BaseAgent):
+    def __init__(
+        self, 
+        device, 
+        q_net, 
+        optimizer_func=None, 
         ):
-        # set attributes
-        self.batch_size = self.replay.batch_size
-        self.gamma = gamma
-        assert gradient_freq >= 1
-        self.gradient_freq = gradient_freq
-
+        super(GorilaDQN_ServerAgent, self).__init__(
+            device, 
+            comm, 
+            q_net, 
+            optimizer_func=optimizer_func, 
+        )
+        
+        # get rank to shard mapping
+        self.rank_to_shard = [None] * self.world_size
+        for idx in range(self.world_size):
+            if idx < self.master_rank: 
+                self.rank_to_shard[idx] = idx
+            else: 
+                self.rank_to_shard[idx] = idx - 1
+        self.rank_to_shard[self.master_rank] = -1
+        
+        # setup random shards
+        self.param_perm = torch.randperm(self.param_len).to(self.comm)    
+        self.shard_mask = [None] * self.world_size
+        self.master_shard = torch.zeros(1).to(self.comm)
+        for rank in range(self.world_size):
+            if rank == self.master_rank: 
+                self.shard_mask[rank] = self.master_shard
+                continue
+            self.shard_mask[rank] = self.param_perm[(
+                self.param_perm % self.num_clients) == self.rank_to_shard(rank)]
+            if len(self.shard_mask[rank]) < self.shard_len:
+                self.shard_mask[rank] = torch.cat(
+                    (self.shard_mask[rank], torch.randint(self.param_len, (1,)).to(self.comm)))
+                assert len(self.shard_mask[idx]) == self.shard_len, 'length error'
+                
+        # send to clients
+        dist.scatter(self.master_shard, scatter_list=self.shard_mask)
+    
     
     def set_optimize_scheme(self, lr=.0001, optimize_freq=1):
         self.lr = lr
@@ -111,13 +123,73 @@ class GorilaDQN_Agent(PrioritizedDQN_Agent):
         self.optimizer = self._get_optimizer(
             self.q_net.parameters(), 
             lr=self.lr
-            )
+        )
         self.optimizer.zero_grad()
+    
+    
+    def optimize(self):
+        self.optimize_timer('add')
+        if self.optimize_timer() % self.optimize_freq != 0: 
+            autograd.backward(self.q_net.parameters(), self.gradient.parameters())
+            return
+        self.optimize_counter('add')
+        self.optimizer.step()
+        self.optimizer.zero_grad()
+    
+    
+                    
+class GorilaDQN_ClientAgent(_GorilaDQN_BaseAgent):
+    def __init__(
+        self, 
+        device, 
+        q_net,
+        target_net, 
+        loss_func, 
+        double_dqn=True, 
+        momentum=0.1, 
+        timeout=0.1,
+    ):
+        super(GorilaDQN_ClientAgent, self).__init__(
+             device, 
+             q_net, 
+             target_net=target_net, 
+             loss_func=loss_func, 
+             double_dqn=double_dqn, 
+        )
+        
+        self.loss_running_mean = 0
+        self.loss_running_std = 0
+        self.momentum = momentum
+        self.timeout= timeout
+        self.shard = self.rank if self.rank <= self.master_rank else self.rank - 1
+        self.shard_mask = torch.zeros(self.shard_len).to(self.comm)
+        dist.scatter(self.shard_mask, src=self.master_rank)
+        
+    
+    def reset(self):
+        super().reset()
+        self.loss_running_mean = 0
+        self.loss_running_std = 0
+    
+        
+    def set_gradient_scheme(
+            self,
+            shard
+            gamma=.99, 
+            gradient_freq=1, 
+        ):
+        # set attributes
+        self.batch_size = self.replay.batch_size
+        self.gamma = gamma
+        assert gradient_freq >= 1
+        self.gradient_freq = gradient_freq
+        
         
     def update_target(self):
         self.target_net.load_state_dict(self.q_net.state_dict())
-        print('______________________________rank [%s] target network updated'
+        print('[rank %s] ______________________________ target network updated'
               '______________________________' % self.rank, flush=True)
+        
         
     def backward(self):
         self.gradient_timer('add')
@@ -153,15 +225,6 @@ class GorilaDQN_Agent(PrioritizedDQN_Agent):
     
     def zero_grad_(self):
         self.gradient = self.param_vector[self.shard_idx]
-    
-    
-    def optimize(self):
-        self.optimize_timer('add')
-        if self.optimize_timer() % self.optimize_freq != 0: 
-            autograd.backward(self.q_net.parameters(), self.gradient.parameters())
-            return
-        self.optimize_counter('add')
-        self.optimizer.step()
-        self.optimizer.zero_grad()
+        
         
         

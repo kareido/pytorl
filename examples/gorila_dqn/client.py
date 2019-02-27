@@ -5,7 +5,7 @@ import numpy as np
 import torch
 import torch.distributed as dist
 import torchvision.transforms as T
-from pytorl.agents import GorilaDQN_Agent
+from pytorl.agents import GorilaDQN_ClientAgent
 import pytorl.distributed as rl_dist
 from pytorl.envs import make_atari_env
 import pytorl.lib as lib
@@ -13,7 +13,7 @@ from pytorl.networks import Dueling_DQN, Q_Network
 import pytorl.utils as utils
 
 
-def dqn_proc(master_rank, worker_group):
+def param_client_proc(master_rank, worker_group):
     ################################################################
     # DEVICE
     rank, world_size = dist.get_rank(), dist.get_world_size()
@@ -24,8 +24,8 @@ def dqn_proc(master_rank, worker_group):
     # CONFIG
     cfg_reader = utils.ConfigReader(default='run_project/config.yaml')
     config = cfg_reader.get_config()
-    seed, num_episodes = config.seed, config.solver.episodes
-    update_target_freq = config.solver.update_target_freq
+    seed, num_episodes = config.seed, config.client.episodes
+    update_target_freq = config.client.update_target_freq
 
     ################################################################
     # ATARI ENVIRONMENT
@@ -45,7 +45,7 @@ def dqn_proc(master_rank, worker_group):
     env.set_episodic_init('FIRE')
     env.set_frames_stack(frames_stack)
     env.set_single_life(True)
-    env.set_frames_action(config.solver.frames_action)
+    env.set_frames_action(config.client.frames_action)
     num_actions = env.num_actions()
     
     ################################################################
@@ -85,9 +85,9 @@ def dqn_proc(master_rank, worker_group):
     target_net = network(input_size=(frames_stack, 84, 84),
                            num_actions=num_actions).to(device)
 
-    loss_func = cfg_reader.get_loss_func(config.solver.loss)
+    loss_func = cfg_reader.get_loss_func(config.client.loss)
 
-    agent = GorilaDQN_Agent(
+    agent = GorilaDQN_ClientAgent(
         device = device,
         q_net = q_net,
         target_net = target_net,
@@ -101,12 +101,21 @@ def dqn_proc(master_rank, worker_group):
         alpha=config.replay.alpha,
         beta_func=get_beta, 
         )
-    agent.reset()
     agent.set_exploration(get_sample=env.sample, get_thres=get_thres)
     agent.set_gradient_scheme(
-        gamma=config.solver.gamma,
-        gradient_freq=config.solver.gradient_freq,
+        gamma=config.client.gamma,
+        gradient_freq=config.client.gradients_stack,
     )
+    
+    ################################################################
+    # CLIENT
+    client = rl_dist.ParamClient()
+    client.set_recv(2)
+    client.set_info(agent.shard, agent.gradient_counter)
+    client.set_param_update(agent.q_net)
+    # initialization
+    updates, _ = client.recv_param()
+    agent.update_target()
 
     ################################################################
     # PRETRAIN
@@ -135,19 +144,15 @@ def dqn_proc(master_rank, worker_group):
 
     ################################################################
     # TRAINING
-    client = rl_dist.Messenger(rank, master_rank)
-    client.set_learner_rank(agent.shard, config.solver.push_freq)
     last_updates = 0
-    dist.barrier()
     for _ in range(num_episodes):
         env.reset()
         # get initial state
         agent.zero_grad_()
-        updates = client.pull_broadcast_params(q_net.parameters())
         curr_state, done = env.state().clone(), False
         while True:
-#             updates = client.pull_params(q_net.parameters())
-#             updates = client.pull_broadcast_params(q_net.parameters())
+            overhead, _ = client.recv_param()
+            updates, thread = overhead
             action = agent.next_action(env.state)
             if not done:
                 next_observ, reward, done, _ = env.step(action)
@@ -156,7 +161,8 @@ def dqn_proc(master_rank, worker_group):
                 next_state = None
             agent.replay.push(curr_state, action, next_state, reward)
             agent.backward()
-            if client.push_grad_shard(agent.gradient): agent.zero_grad_()
+            client.isend_shard(agent.gradient)
+            
             if updates - last_updates >= update_target_freq: 
                 agent.update_target()
                 last_updates = updates
@@ -165,7 +171,7 @@ def dqn_proc(master_rank, worker_group):
                 
         print('[rank %s]' % rank, time.strftime('[%Y-%m-%d-%H:%M:%S'), 
               '%s]:' % os.environ['run_name'], 'episode [%s/%s], ep-reward [%s], eps [%.2f], '
-              'beta [%.2f], timesteps [%s], frames [%s], global_updates [%s]' %
+              'beta [%.2f], timesteps [%s], frames [%s], global_updates [%s], server [%s]' %
               (env.global_episodes(), num_episodes, env.episodic_reward(), get_thres(), get_beta(),
-               agent.gradient_counter(), env.global_frames(), updates), flush=True)
+               agent.gradient_counter(), env.global_frames(), updates, thread), flush=True)
         

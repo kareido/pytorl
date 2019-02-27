@@ -13,9 +13,9 @@ then
     nodes=1
 fi
 
-N=$(( ${nodes}+1 ))
+N=$(( ${nodes}+0 ))
 
-srun_cmd="srun -K -J ${name} -p ${partition} -n${N} --gres gpu:${nodes}"
+srun_cmd="srun -J ${name} -p ${partition} -n${N} --gres gpu:${nodes}"
 py_cmd='python launcher.py 2>&1 | tee -a ../log.txt'
 
 echo '________________________________________________________________________________'

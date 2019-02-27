@@ -1,22 +1,24 @@
 seed: 123
 solver:
     env: PongNoFrameskip-v4
+    # this specifies how much frames stacked for one input
+    # also specifies the number of network input channels
+    frames_stack: 4
     double_dqn: True
     dueling: False
+server:
     lr: 0.0001
+    optimizer: Adagrad
+client:
     gamma: 0.99
     episodes: 4000
-    # this specifies how much frames stacked for one input
-    frames_stack: 4
     # this specifies how many frames an action lasts
     frames_action: 4
-    # note:gradient_freq w.r.t timesteps
-    gradient_freq: 4
-    push_freq: 4
-    # note: update_target_freq w.r.t timesteps
+    # note:gradient_freq w.r.t local timesteps
+    gradients_stack: 4
+    # note: update_target_freq w.r.t global timesteps
     update_target_freq: 4000
     loss: smooth_l1_loss
-    optimizer: Adagrad
 greedy:
     start: 1
     end: 0.02
