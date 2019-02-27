@@ -26,6 +26,8 @@ def param_client_proc(master_rank, worker_group):
     config = cfg_reader.get_config()
     seed, num_episodes = config.seed, config.client.episodes
     update_target_freq = config.client.update_target_freq
+    gradients_push_freq = config.client.gradients_push_freq
+    delay_factor = config.client.delay_factor
 
     ################################################################
     # ATARI ENVIRONMENT
@@ -100,11 +102,11 @@ def param_client_proc(master_rank, worker_group):
         init_size=config.replay.init_size, 
         alpha=config.replay.alpha,
         beta_func=get_beta, 
-        )
+    )
     agent.set_exploration(get_sample=env.sample, get_thres=get_thres)
     agent.set_gradient_scheme(
         gamma=config.client.gamma,
-        gradient_freq=config.client.gradients_stack,
+        gradient_freq=1
     )
     
     ################################################################
@@ -114,7 +116,8 @@ def param_client_proc(master_rank, worker_group):
     client.set_info(agent.shard, agent.gradient_counter)
     client.set_param_update(agent.q_net)
     # initialization
-    updates, _ = client.recv_param()
+    overhead, _ = client.recv_param()
+    glb_updates, server = overhead
     agent.update_target()
 
     ################################################################
@@ -144,28 +147,40 @@ def param_client_proc(master_rank, worker_group):
 
     ################################################################
     # TRAINING
-    last_updates = 0
+    last_target_update = 0
+    
     for _ in range(num_episodes):
         env.reset()
         # get initial state
         agent.zero_grad_()
         curr_state, done = env.state().clone(), False
         while True:
-            overhead, _ = client.recv_param()
-            updates, thread = overhead
             action = agent.next_action(env.state)
+            overhead, _ = client.recv_param()
+            glb_updates, server = overhead
             if not done:
                 next_observ, reward, done, _ = env.step(action)
                 next_state = env.state().clone()
             else:
                 next_state = None
             agent.replay.push(curr_state, action, next_state, reward)
-            agent.backward()
-            client.isend_shard(agent.gradient)
-            
-            if updates - last_updates >= update_target_freq: 
+            # gradient time delay
+            glb_avg_time = glb_updates / agent.num_clients
+            local_time = agent.gradient_counter() / gradients_push_freq
+            if glb_avg_time * (1 - delay_factor) <= local_time:
+                agent.backward()
+                # push gradient
+                if agent.gradient_counter() % gradients_push_freq == 0:
+                    client.isend_shard(agent.gradient)
+                    agent.zero_grad_()
+            else:
+                print('[rank %s]' % rank, time.strftime('[%Y-%m-%d-%H:%M:%S'), 
+              '%s]:' % os.environ['run_name'], 'server average time [%s], local time [%s],' %
+              (glb_avg_time, local_time), 'skip gradients due to delay timed out', flush=True)
+            # update target network
+            if glb_updates - last_target_update >= update_target_freq: 
                 agent.update_target()
-                last_updates = updates
+                last_target_update = glb_updates
             curr_state = next_state
             if done: break
                 
@@ -173,5 +188,5 @@ def param_client_proc(master_rank, worker_group):
               '%s]:' % os.environ['run_name'], 'episode [%s/%s], ep-reward [%s], eps [%.2f], '
               'beta [%.2f], timesteps [%s], frames [%s], global_updates [%s], server [%s]' %
               (env.global_episodes(), num_episodes, env.episodic_reward(), get_thres(), get_beta(),
-               agent.gradient_counter(), env.global_frames(), updates, thread), flush=True)
+               agent.gradient_counter(), env.global_frames(), glb_updates, server), flush=True)
         

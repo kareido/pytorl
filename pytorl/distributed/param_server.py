@@ -79,8 +79,9 @@ class ParamServer(_Messenger):
         self.counter = global_timesteps_counter
     
     
-    def set_param_update(self, model):
+    def set_param_update(self, model, optim_handler):
         self.model = model
+        self.optim_handler = optim_handler
         self.param_vector = parameters_to_vector(model.parameters()).detach()
         self.shard_len = (len(self.param_vector) + self.world_size - 1) // (self.world_size - 1)
     
@@ -100,13 +101,11 @@ class ParamServer(_Messenger):
     
     def listen(self):
         sender, shard, local_time, signal = self._recv_info()
-#         print('listened: sender [%s], shard [%s], local [%s], signal [%s]' % 
-#               (sender, shard, local_time, signal), flush=True)
         if signal == SIG.GRAD_PUSH: 
-#             print('server pulling network grads from rank [%s]' % sender, flush=True)
-            with self.lock: self.counter('add')
-            return self._recv_shard(sender)
-#         print('server pushing network params to rank [%s]' % sender, flush=True)
+            _, grad_shard = self._recv_shard(sender)
+#             print('master server updating q network using grad from rank [%s]' % sender, flush=True)
+            with self.lock: self.optim_handler(shard, grad_shard)
+            return
         self._isend_param(sender).wait()
     
     

@@ -1,12 +1,13 @@
 import os
 import torch
 import torch.distributed as dist
-from .slurm_env import *
+from ._slurm import *
 
 
 def _get_slurm_addr():
-    node_list = os.environ['SLURM_NODELIST']
+    node_list = get_nodelist()
     num_gpus = torch.cuda.device_count()
+    rank, world_size = get_rank(), get_world_size()
     if num_gpus > 0: 
         gpu_id = rank % num_gpus
         torch.cuda.set_device(gpu_id)
@@ -28,8 +29,7 @@ def _get_slurm_addr():
 def slurm_data_parallel_arch(port=23032, backend='nccl'):
     os.environ['DISTRIBUTED_BACKEND'] = backend
 
-    rank = get_rank()
-    world_size = get_world_size()
+    rank, world_size = get_rank(), get_world_size()
     num_gpus = torch.cuda.device_count()
     if num_gpus > 0: 
         gpu_id = rank % num_gpus
@@ -53,20 +53,17 @@ def data_parallel_arch(port=23030, backend='nccl'):
     a DIY way to start data parallel distributed arch
     """
     os.environ['DISTRIBUTED_BACKEND'] = backend
-    rank, world_size = get_rank(), get_world_size()
+    
+    checklist = {'MASTER_PORT', 'MASTER_ADDR', 'WORLD_SIZE', 'RANK'}
+    for env_var in checklist:
+        assert env_var in os.environ, 'error: %s not set yet' % env_var
+    dist.init_process_group(backend=backend)
+        
+    rank, world_size = dist.get_rank(), dist.get_world_size()
     num_gpus = torch.cuda.device_count()
     if num_gpus > 0: 
         gpu_id = rank % num_gpus
         torch.cuda.set_device(gpu_id)
-    
-    if world_size == 1:
-        rank, world_size = 0, 1
-    
-    else:
-        checklist = {'MASTER_PORT', 'MASTER_ADDR', 'WORLD_SIZE', 'RANK', 'MASTER_RANK'}
-        for env_var in checklist:
-            assert env_var in os.environ, 'error: %s not set yet' % env_var
-        dist.init_process_group(backend=backend)
 
     return rank, world_size, master_rank, worker_list
 
@@ -111,6 +108,13 @@ def param_server_arch(port=23028, backend='gloo', master_rank=0):
     a DIY way to start parameter server distributed arch
     """
     os.environ['DISTRIBUTED_BACKEND'] = backend
+
+    checklist = {'MASTER_PORT', 'MASTER_ADDR', 'WORLD_SIZE', 'RANK', 'MASTER_RANK'}
+    for env_var in checklist:
+        assert env_var in os.environ, 'error: %s not set yet' % env_var
+        
+    dist.init_process_group(backend=backend)
+    
     rank, world_size = get_rank(), get_world_size()
     assert world_size > 1, 'parameter server arch requires multiple processes'
     assert master_rank < world_size, 'invalid master_rank: %s' % master_rank
@@ -121,12 +125,6 @@ def param_server_arch(port=23028, backend='gloo', master_rank=0):
     if num_gpus > 0: 
         gpu_id = rank % num_gpus
         torch.cuda.set_device(gpu_id)
-
-    checklist = {'MASTER_PORT', 'MASTER_ADDR', 'WORLD_SIZE', 'RANK', 'MASTER_RANK'}
-    for env_var in checklist:
-        assert env_var in os.environ, 'error: %s not set yet' % env_var
-        
-    dist.init_process_group(backend=backend)
 
     return rank, world_size, master_rank, worker_list
 

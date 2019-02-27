@@ -15,3 +15,7 @@ def get_jobid():
 
 def get_backend():
     return os.environ.get('DISTRIBUTED_BACKEND', None)
+
+
+def get_nodelist():
+    return os.environ['SLURM_NODELIST']

@@ -27,6 +27,8 @@ def param_server_proc(master_rank, worker_list):
     cfg_reader = utils.ConfigReader(default='run_project/config.yaml')
     config = cfg_reader.get_config()
     seed, frames_stack = config.seed, config.solver.frames_stack
+    save_freq, save_path = config.record.save_freq, config.record.save_path
+    num_servers = config.server.num_threads
     
     env = make_atari_env(config.solver.env, T.Compose([]), render=False)
     num_actions = env.num_actions()
@@ -59,48 +61,24 @@ def param_server_proc(master_rank, worker_list):
     agent.reset()
     agent.set_optimize_scheme(
         lr=config.server.lr,
-        optimize_freq=world_size,
+        optimize_freq=1,
     )
+    agent.set_checkpoint(save_freq, save_path)
 
     ################################################################
     # SERVICE
     
     server_lock = Lock()
-    num_servers = 4
     server = []
     for idx in range(num_servers): 
         server.append(rl_dist.ParamServer(idx, server_lock))
         server[idx].set_listen(4, agent.optimize_counter)
-        server[idx].set_param_update(agent.q_net)
+        server[idx].set_param_update(agent.q_net, agent.optimize)
         
     for idx in range(num_servers - 1): server[idx].start()
     print('server current running threads: [%s]' % threading.active_count(), flush=True)
-    server[num_servers - 1].start()
+    server[num_servers - 1].run()
     
-    
-    
-#     server_1 = rl_dist.ParamServer()
-#     server_1.set_listen(4, lambda: 1)
-#     server_1.set_param_update(agent.q_net)
-# #     server_1.start()
-# #     server_1.run()
-    
-#     server_2 = rl_dist.ParamServer()
-#     server_2.set_listen(4, lambda: 2)
-#     server_2.set_param_update(agent.q_net)
-    
-#     server_3 = rl_dist.ParamServer()
-#     server_3.set_listen(4, lambda: 3)
-#     server_3.set_param_update(agent.q_net)
-    
-#     server_4 = rl_dist.ParamServer()
-#     server_4.set_listen(4, lambda: 4)
-#     server_4.set_param_update(agent.q_net)
-    
-#     server_2.start()
-#     server_3.start()
-#     server_4.start()
-#     server_1.run()
     
         
         

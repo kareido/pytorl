@@ -80,13 +80,17 @@ class GorilaDQN_ServerAgent(_GorilaDQN_BaseAgent):
         device, 
         q_net, 
         optimizer_func=None, 
+        comm='cpu',
         ):
         super(GorilaDQN_ServerAgent, self).__init__(
             device, 
-            comm, 
             q_net, 
             optimizer_func=optimizer_func, 
+            comm=comm, 
         )
+        
+        self.param_list = [item.clone() for item in self.q_net.parameters()]
+        self.save = lambda: None
         
         # get rank to shard mapping
         self.rank_to_shard = [None] * self.world_size
@@ -100,20 +104,20 @@ class GorilaDQN_ServerAgent(_GorilaDQN_BaseAgent):
         # setup random shards
         self.param_perm = torch.randperm(self.param_len).to(self.comm)    
         self.shard_mask = [None] * self.world_size
-        self.master_shard = torch.zeros(1).to(self.comm)
+        self.master_shard = torch.zeros(self.shard_len, dtype=torch.long, device=self.comm)
         for rank in range(self.world_size):
             if rank == self.master_rank: 
                 self.shard_mask[rank] = self.master_shard
                 continue
-            self.shard_mask[rank] = self.param_perm[(
-                self.param_perm % self.num_clients) == self.rank_to_shard(rank)]
+            self.shard_mask[rank] = \
+                self.param_perm[(self.param_perm % self.num_clients) == self.rank_to_shard[rank]]
             if len(self.shard_mask[rank]) < self.shard_len:
                 self.shard_mask[rank] = torch.cat(
                     (self.shard_mask[rank], torch.randint(self.param_len, (1,)).to(self.comm)))
-                assert len(self.shard_mask[idx]) == self.shard_len, 'length error'
+                assert len(self.shard_mask[rank]) == self.shard_len, 'length error'
                 
         # send to clients
-        dist.scatter(self.master_shard, scatter_list=self.shard_mask)
+        dist.scatter(self.master_shard, scatter_list=self.shard_mask, src=self.master_rank)
     
     
     def set_optimize_scheme(self, lr=.0001, optimize_freq=1):
@@ -124,18 +128,36 @@ class GorilaDQN_ServerAgent(_GorilaDQN_BaseAgent):
             self.q_net.parameters(), 
             lr=self.lr
         )
-        self.optimizer.zero_grad()
+        self.zero_grad_()
+        
+    
+    def set_checkpoint(self, save_freq, save_path):
+        self.save_freq = save_freq
+        self.save_path = save_path
+        def _save():
+            if self.optimize_counter() % self.save_freq == 0:
+                self.save_pth(self.q_net, self.save_path,
+                    filename='q_net.pth', obj_name='q_network')
+        self.save = _save
     
     
-    def optimize(self):
+    def optimize(self, shard, grad_shard):
         self.optimize_timer('add')
-        if self.optimize_timer() % self.optimize_freq != 0: 
-            autograd.backward(self.q_net.parameters(), self.gradient.parameters())
-            return
+        self.param_vector[self.shard_mask[shard]].add_(grad_shard)
+        if self.optimize_timer() % self.optimize_freq != 0: return
+        vector_to_parameters(self.param_vector, self.param_list)
+        autograd.backward(self.q_net.parameters(), self.param_list)
         self.optimize_counter('add')
         self.optimizer.step()
+        self.zero_grad_()
+        self.save()
+
+        
+
+        
+    def zero_grad_(self):
+        self.param_vector = self.param_vector.zero_()
         self.optimizer.zero_grad()
-    
     
                     
 class GorilaDQN_ClientAgent(_GorilaDQN_BaseAgent):
@@ -147,34 +169,33 @@ class GorilaDQN_ClientAgent(_GorilaDQN_BaseAgent):
         loss_func, 
         double_dqn=True, 
         momentum=0.1, 
-        timeout=0.1,
+        comm='cpu',
     ):
         super(GorilaDQN_ClientAgent, self).__init__(
-             device, 
-             q_net, 
-             target_net=target_net, 
-             loss_func=loss_func, 
-             double_dqn=double_dqn, 
+            device, 
+            q_net, 
+            target_net=target_net, 
+            loss_func=loss_func, 
+            double_dqn=double_dqn, 
+            comm=comm, 
         )
         
-        self.loss_running_mean = 0
-        self.loss_running_std = 0
+        self.loss_running_mean = 0.
+        self.loss_running_std = 1.
         self.momentum = momentum
-        self.timeout= timeout
         self.shard = self.rank if self.rank <= self.master_rank else self.rank - 1
-        self.shard_mask = torch.zeros(self.shard_len).to(self.comm)
-        dist.scatter(self.shard_mask, src=self.master_rank)
+        self.shard_mask = torch.zeros(self.shard_len, dtype=torch.long, device=self.comm)
+        dist.scatter(self.shard_mask, [], src=self.master_rank)
         
     
     def reset(self):
         super().reset()
-        self.loss_running_mean = 0
-        self.loss_running_std = 0
+        self.loss_running_mean = 0.
+        self.loss_running_std = 1.
     
         
     def set_gradient_scheme(
             self,
-            shard
             gamma=.99, 
             gradient_freq=1, 
         ):
@@ -184,7 +205,18 @@ class GorilaDQN_ClientAgent(_GorilaDQN_BaseAgent):
         assert gradient_freq >= 1
         self.gradient_freq = gradient_freq
         
+    
+    def _update_loss_running_mean(self, loss):
+        new_mean = loss.mean().detach()
+        self.loss_running_mean = \
+            (1 - self.momentum) * self.loss_running_mean + self.momentum * new_mean
+        return self.loss_running_mean
         
+    def _update_loss_running_std(self, loss):
+        new_std = loss.std().detach()
+        self.loss_running_std = (1 - self.momentum) * self.loss_running_std + self.momentum * new_std
+        return self.loss_running_std
+    
     def update_target(self):
         self.target_net.load_state_dict(self.q_net.state_dict())
         print('[rank %s] ______________________________ target network updated'
@@ -214,17 +246,21 @@ class GorilaDQN_ClientAgent(_GorilaDQN_BaseAgent):
         # compute the expected Q values
         expected_q_values = (targeted_q_values * self.gamma) + rewards
         # compute loss
-        q_net_loss = self.loss(predicted_q_values, expected_q_values.unsqueeze(1))
+        q_net_loss = self.loss(predicted_q_values, expected_q_values.unsqueeze(1), reduction='none')
+        self._update_loss_running_mean(q_net_loss)
+        self._update_loss_running_std(q_net_loss)
+        q_net_loss = q_net_loss[q_net_loss <= (self.loss_running_mean + self.loss_running_std)].sum()
         # optimize the model
         self.q_net.zero_grad()
         grad = autograd.grad(q_net_loss, self.q_net.parameters())
-        delta_grad = parameters_to_vector(grad)[self.shard_idx]
+        delta_grad = parameters_to_vector(grad)[self.shard_mask]
+        assert self.gradient is not None, 'should call zero_grad_() before backward'
         self.gradient.add_(delta_grad)
         return self.gradient
     
     
     def zero_grad_(self):
-        self.gradient = self.param_vector[self.shard_idx]
+        self.gradient = self.param_vector[self.shard_mask].clone()
         
         
         

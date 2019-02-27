@@ -6,7 +6,7 @@ Check the config to see what you can change and how to switch between different 
 Source: https://arxiv.org/abs/1507.04296  
 
 
-#### Asynchronous Stochastic Gradient Descent with Delay Compensation
+#### (TO DO) Asynchronous Stochastic Gradient Descent with Delay Compensation
 Source: https://arxiv.org/abs/1609.08326
 
 &nbsp;  

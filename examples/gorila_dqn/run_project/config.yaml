@@ -7,6 +7,7 @@ solver:
     double_dqn: True
     dueling: False
 server:
+    num_threads: 4
     lr: 0.0001
     optimizer: Adagrad
 client:
@@ -14,10 +15,11 @@ client:
     episodes: 4000
     # this specifies how many frames an action lasts
     frames_action: 4
-    # note:gradient_freq w.r.t local timesteps
-    gradients_stack: 4
+    # note: gradient push freq w.r.t local timesteps
+    gradients_push_freq: 8
     # note: update_target_freq w.r.t global timesteps
     update_target_freq: 4000
+    delay_factor: 0.1
     loss: smooth_l1_loss
 greedy:
     start: 1
