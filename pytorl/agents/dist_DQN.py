@@ -155,11 +155,10 @@ class GorilaDQN_ServerAgent(_GorilaDQN_BaseAgent):
         self.save()
 
         
-
-        
     def zero_grad_(self):
         self.param_vector = self.param_vector.zero_()
         self.optimizer.zero_grad()
+    
     
                     
 class GorilaDQN_ClientAgent(_GorilaDQN_BaseAgent):

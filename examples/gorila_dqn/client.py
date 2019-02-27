@@ -158,7 +158,7 @@ def param_client_proc(master_rank, worker_group):
           len(agent.replay), agent.replay.init_size), flush=True)
 
     env.refresh()
-
+    dist.barrier(worker_group)
     ################################################################
     # TRAINING
     last_target_update = 0

@@ -1,4 +1,4 @@
-prefix='torl'
+prefix='gorila'
 alg='ATARI PRIORITIZED DQN'
 name=$1
 partition=$2
