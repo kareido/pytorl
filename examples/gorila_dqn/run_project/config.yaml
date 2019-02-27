@@ -9,7 +9,7 @@ solver:
 server:
     num_threads: 4
     lr: 0.0001
-    optimizer: Adam
+    optimizer: Adagrad
 client:
     gamma: 0.99
     episodes: 4000
@@ -30,7 +30,7 @@ replay:
     capacity: 500000
     init_size: 50000
     batch_size: 32
-    alpha: 0.6
+    alpha: 0
     beta:
         start: 0.4
         end: 1

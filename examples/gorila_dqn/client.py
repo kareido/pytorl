@@ -4,6 +4,7 @@ import time
 import numpy as np
 import torch
 import torch.distributed as dist
+from torch.nn.utils import vector_to_parameters
 import torchvision.transforms as T
 from pytorl.agents import GorilaDQN_ClientAgent
 import pytorl.distributed as rl_dist
@@ -129,8 +130,9 @@ def param_client_proc(master_rank, worker_group):
     client.set_recv(2)
     client.set_info(agent.shard, agent.gradient_counter)
     client.set_param_update(agent.q_net)
-    # initialization
-    overhead, _ = client.recv_param()
+    # q network initialization
+    overhead, params = client.recv_param()
+    vector_to_parameters(params, agent.q_net.parameters())
     glb_updates, server = overhead
     agent.update_target()
 
@@ -158,19 +160,25 @@ def param_client_proc(master_rank, worker_group):
           len(agent.replay), agent.replay.init_size), flush=True)
 
     env.refresh()
+    # make a barrier to prevent global timeout problem
     dist.barrier(worker_group)
+    
     ################################################################
     # TRAINING
-    last_target_update = 0
+    last_target_update, warned = 0, False
     
     for _ in range(num_episodes):
         env.reset()
         # get initial state
         agent.zero_grad_()
         curr_state, done = env.state().clone(), False
+        overhead, params = client.recv_param()
+        vector_to_parameters(params, agent.q_net.parameters())
+        glb_updates, server = overhead
         while True:
             action = agent.next_action(env.state)
-            overhead, _ = client.recv_param()
+            overhead, params = client.recv_param()
+            vector_to_parameters(params, agent.q_net.parameters())
             glb_updates, server = overhead
             if not done:
                 next_observ, reward, done, _ = env.step(action)
@@ -182,15 +190,19 @@ def param_client_proc(master_rank, worker_group):
             glb_avg_time = glb_updates / agent.num_clients
             local_time = agent.gradient_counter() / gradients_push_freq
             if glb_avg_time * (1 - delay_factor) <= local_time:
+                warned = False
                 agent.backward()
                 # push gradient
                 if agent.gradient_counter() % gradients_push_freq == 0:
                     client.isend_shard(agent.gradient)
                     agent.zero_grad_()
             else:
-                print('[rank %s]' % rank, time.strftime('[%Y-%m-%d-%H:%M:%S'), 
-              '%s]:' % os.environ['run_name'], 'server average time [%.1f], local time [%s],' %
-              (glb_avg_time, local_time), 'skip gradients due to delay timed out', flush=True)
+                if not warned:
+                    warned = True
+                    print('[rank %s]' % rank, time.strftime('[%Y-%m-%d-%H:%M:%S'), 
+                      '%s]:' % os.environ['run_name'], 'server average '
+                      'time [%.1f], local time [%s],' % (glb_avg_time, local_time), 
+                      'skip gradients due to delay timed out ...', flush=True)
                 agent.zero_grad_()
                 agent.gradient_counter('add')
             # update target network
