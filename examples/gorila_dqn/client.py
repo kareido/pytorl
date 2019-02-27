@@ -201,13 +201,14 @@ def param_client_proc(master_rank, worker_group):
                     warned = True
                     print('[rank %s]' % rank, time.strftime('[%Y-%m-%d-%H:%M:%S'), 
                       '%s]:' % os.environ['run_name'], 'server average '
-                      'time [%.1f], local time [%s],' % (glb_avg_time, local_time), 
+                      'time [%.1f], local time [%.1f],' % (glb_avg_time, local_time), 
                       'skip gradients due to delay timed out ...', flush=True)
                 agent.zero_grad_()
                 agent.gradient_counter('add')
             # update target network
             if glb_updates - last_target_update >= update_target_freq: 
-                agent.update_target()
+                overhead, params = client.recv_param()
+                vector_to_parameters(params, agent.target_net.parameters())
                 last_target_update = glb_updates
             curr_state = next_state
             if done: break

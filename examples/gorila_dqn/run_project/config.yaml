@@ -7,9 +7,9 @@ solver:
     double_dqn: True
     dueling: True
 server:
-    num_threads: 4
+    num_threads: 8
     lr: 0.0001
-    optimizer: Adagrad
+    optimizer: Adam
 client:
     gamma: 0.99
     episodes: 4000
@@ -18,7 +18,7 @@ client:
     # note: gradient push freq w.r.t local timesteps
     gradients_push_freq: 1
     # note: update_target_freq w.r.t global timesteps
-    update_target_freq: 1000
+    update_target_freq: 100
     delay_factor: 0.25
     loss: smooth_l1_loss
 greedy:
@@ -30,7 +30,7 @@ replay:
     capacity: 500000
     init_size: 50000
     batch_size: 32
-    alpha: 0
+    alpha: 0.6
     beta:
         start: 0.4
         end: 1
