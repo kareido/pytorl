@@ -83,7 +83,7 @@ class ParamServer(_Messenger):
         self.model = model
         self.optim_handler = optim_handler
         self.param_vector = parameters_to_vector(model.parameters()).detach()
-        self.shard_len = (len(self.param_vector) + self.world_size - 1) // (self.world_size - 1)
+        self.shard_len = (len(self.param_vector) + self.world_size - 2) // (self.world_size - 1)
     
     
     def _recv_info(self):
@@ -103,8 +103,9 @@ class ParamServer(_Messenger):
         sender, shard, local_time, signal = self._recv_info()
         if signal == SIG.GRAD_PUSH: 
             _, grad_shard = self._recv_shard(sender)
+#             print('server thread %s _ len %s grad_shart len %s' % (self.thread, len(_), len(grad_shard)), flush=True)
 #             print('master server updating q network using grad from rank [%s]' % sender, flush=True)
-            with self.lock: self.optim_handler(shard, grad_shard)
+            with self.lock: self.optim_handler(sender, grad_shard)
             return
         self._isend_param(sender).wait()
     

@@ -5,7 +5,7 @@ solver:
     # also specifies the number of network input channels
     frames_stack: 4
     double_dqn: True
-    dueling: False
+    dueling: True
 server:
     num_threads: 4
     lr: 0.0001
@@ -16,9 +16,9 @@ client:
     # this specifies how many frames an action lasts
     frames_action: 4
     # note: gradient push freq w.r.t local timesteps
-    gradients_push_freq: 8
+    gradients_push_freq: 1
     # note: update_target_freq w.r.t global timesteps
-    update_target_freq: 4000
+    update_target_freq: 1000
     delay_factor: 0.1
     loss: smooth_l1_loss
 greedy:
@@ -36,7 +36,8 @@ replay:
         end: 1
         frames: 100000
 record:
-    save_freq: 60000
+    record_rank: 1
+    save_freq: 10000
     save_path: ./checkpoint
     load_path: /Users/zhe/Desktop
     render: False

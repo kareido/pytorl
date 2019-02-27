@@ -17,6 +17,7 @@ def param_client_proc(master_rank, worker_group):
     ################################################################
     # DEVICE
     rank, world_size = dist.get_rank(), dist.get_world_size()
+    master_rank = rl_dist.get_master_rank()
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print('rank: [%s], current device: [%s]' % (rank, device), flush=True)
     
@@ -28,6 +29,18 @@ def param_client_proc(master_rank, worker_group):
     update_target_freq = config.client.update_target_freq
     gradients_push_freq = config.client.gradients_push_freq
     delay_factor = config.client.delay_factor
+    record_rank = config.record.record_rank
+    assert record_rank != master_rank and record_rank <= world_size - 1
+    
+    ################################################################
+    # RECORDER
+    # tensorboard
+    if rank == record_rank:
+        print('[rank %s] tensorboard started at specified record rank [%s]' % (rank, rank), flush=True)
+        tensorboard = utils.tensorboard_writer(logdir='..')
+        tensorboard.add_textfile('config', cfg_reader.config_path)
+    else:
+        tensorboard = None
 
     ################################################################
     # ATARI ENVIRONMENT
@@ -108,6 +121,7 @@ def param_client_proc(master_rank, worker_group):
         gamma=config.client.gamma,
         gradient_freq=1
     )
+    agent.set_tensorboard(tensorboard)
     
     ################################################################
     # CLIENT
@@ -175,8 +189,10 @@ def param_client_proc(master_rank, worker_group):
                     agent.zero_grad_()
             else:
                 print('[rank %s]' % rank, time.strftime('[%Y-%m-%d-%H:%M:%S'), 
-              '%s]:' % os.environ['run_name'], 'server average time [%s], local time [%s],' %
+              '%s]:' % os.environ['run_name'], 'server average time [%.1f], local time [%s],' %
               (glb_avg_time, local_time), 'skip gradients due to delay timed out', flush=True)
+                agent.zero_grad_()
+                agent.gradient_counter('add')
             # update target network
             if glb_updates - last_target_update >= update_target_freq: 
                 agent.update_target()
@@ -190,3 +206,10 @@ def param_client_proc(master_rank, worker_group):
               (env.global_episodes(), num_episodes, env.episodic_reward(), get_thres(), get_beta(),
                agent.gradient_counter(), env.global_frames(), glb_updates, server), flush=True)
         
+        if tensorboard is not None:
+        # recording via tensorboard
+            tensorboard.add_scalar('episode/reward', env.episodic_reward(), env.global_episodes())
+            tensorboard.add_scalar('episode/thres', get_thres(), env.global_episodes())  
+
+            
+            

@@ -104,19 +104,20 @@ class DQN_Agent(Agent):
         return self.target_net(non_final_next).max(1)[0].detach()
     
     
-    def _record(self, rewards, q_net_loss, predicted_q_values, expected_q_values):
+    def _record(self, rewards, q_net_loss, predicted_q_values, expected_q_values, counter=None):
         if self._tensorboard is not None:
+            if counter is None: counter = self.optimize_counter
             reward_mean = rewards.mean().item()
             predicted_q_values_mean = predicted_q_values.mean().item()
             expected_q_values_mean = expected_q_values.mean().item()
 
             self._tensorboard.add_scalar('timestep/replay_reward-mean', 
-                                   reward_mean, self.optimize_counter())
-            self._tensorboard.add_scalar('timestep/loss', q_net_loss, self.optimize_counter())
+                                   reward_mean, counter())
+            self._tensorboard.add_scalar('timestep/loss', q_net_loss, counter())
             self._tensorboard.add_scalar('timestep/predicted_q_values-mean', 
-                                   predicted_q_values_mean, self.optimize_counter())
+                                   predicted_q_values_mean, counter())
             self._tensorboard.add_scalar('timestep/expected_q_values-mean', 
-                                   expected_q_values_mean, self.optimize_counter())    
+                                   expected_q_values_mean, counter())    
     
     
     def optimize(self):

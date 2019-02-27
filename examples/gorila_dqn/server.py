@@ -19,6 +19,7 @@ def param_server_proc(master_rank, worker_list):
     ################################################################
     # DEVICE
     rank, world_size = dist.get_rank(), dist.get_world_size()
+    master_rank = rl_dist.get_master_rank()
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print('RANK: [%s], current device: [%s]' % (rank, device), flush=True)
 
@@ -29,6 +30,8 @@ def param_server_proc(master_rank, worker_list):
     seed, frames_stack = config.seed, config.solver.frames_stack
     save_freq, save_path = config.record.save_freq, config.record.save_path
     num_servers = config.server.num_threads
+    record_rank = config.record.record_rank
+    assert record_rank != master_rank and record_rank <= world_size - 1
     
     env = make_atari_env(config.solver.env, T.Compose([]), render=False)
     num_actions = env.num_actions()
