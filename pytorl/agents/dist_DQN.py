@@ -222,6 +222,7 @@ class GorilaDQN_ClientAgent(_GorilaDQN_BaseAgent):
         self.shard_mask = torch.zeros(self.param_len, dtype=torch.uint8, device=self.comm)
         dist.scatter(self.shard_mask, [], src=self.master_rank)
         self.shard_mask = self.shard_mask.to(device)
+        self.shard_len = self.shard_mask.sum().item()
         
     
     def reset(self):

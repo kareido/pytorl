@@ -4,13 +4,13 @@ solver:
     # this specifies how much frames stacked for one input
     # also specifies the number of network input channels
     frames_stack: 4
-    double_dqn: False
-    dueling: False
+    double_dqn: True
+    dueling: True
 server:
-    num_threads: 4
-    lr: 0.0001
-    optimizer: Adam
-    shard_factor: default
+    num_threads: 8
+    lr: 0.001
+    optimizer: Adagrad
+    shard_factor: 0.67
 client:
     gamma: 0.99
     episodes: 4000
