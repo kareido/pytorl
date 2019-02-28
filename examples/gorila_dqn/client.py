@@ -177,10 +177,7 @@ def param_client_proc(master_rank, worker_group):
         glb_updates, server = overhead
         while True:
             action = agent.next_action(env.state)
-            overhead, params = client.recv_param()
-#             for x in agent.q_net.parameters():
-#                 print('params norm:', params.norm(), flush=True)
-#                 break            
+            overhead, params = client.recv_param()     
             vector_to_parameters(params, agent.q_net.parameters())
             glb_updates, server = overhead
             if not done:
@@ -197,7 +194,6 @@ def param_client_proc(master_rank, worker_group):
                 agent.backward()
                 # push gradient
                 if agent.gradient_counter() % gradients_push_freq == 0:
-#                     print('grad norm:', agent.gradient.norm(), flush=True)
                     client.isend_shard(agent.gradient)
                     agent.zero_grad_()
             else:
@@ -213,11 +209,6 @@ def param_client_proc(master_rank, worker_group):
             if glb_updates - last_target_update >= update_target_freq: 
                 overhead, params = client.recv_param()
                 vector_to_parameters(params, agent.target_net.parameters())
-#                 for x in agent.target_net.parameters():
-#                     print('________target:', x[0][0][0], flush=True)
-#                     break
-#                 print('[rank %s] ______________________________target network updated'
-#                       '______________________________' % rank, flush=True)
                 last_target_update = glb_updates
             curr_state = next_state
             if done: break

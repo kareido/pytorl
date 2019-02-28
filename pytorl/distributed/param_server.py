@@ -56,7 +56,6 @@ class _Messenger(Thread):
         if payload_len > 0:
             _overhead_msg, _payload_msg = msg[:overhead_len], msg[overhead_len:].to(self.device)
             _overhead_msg = list(map(int, _overhead_msg))
-#             print('_payload_msg norm:', _payload_msg.norm(), flush=True)
             return _overhead_msg, _payload_msg
         
         return list(map(int, msg))

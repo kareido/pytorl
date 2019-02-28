@@ -45,9 +45,6 @@ class _GorilaDQN_BaseAgent(PrioritizedDQN_Agent):
         self._gradient_timer = 0
         self.param_vector = parameters_to_vector(self.q_net.parameters()).zero_().detach()
         self.param_len = len(self.param_vector)
-#         self.shard_len = (self.param_len + self.num_clients - 1) // self.num_clients
-#         print('param len %s shard len %s' % (self.param_len, self.shard_len), flush=True)
-
         
         
     def gradient_counter(self, pattern=None, num=1):
@@ -102,18 +99,11 @@ class GorilaDQN_ServerAgent(_GorilaDQN_BaseAgent):
             comm=comm, 
         )
         
-#         self.param_list = [item.clone() for item in self.q_net.parameters()]
         if self.rank != self.master_rank: raise RuntimeError('server agent not running on server')
         # initialize gradient list (ortherwise, grads are all None)
         autograd.backward(self.q_net.parameters(), self.q_net.parameters())
         self.grad_list = [item.grad for item in self.q_net.parameters()]
-#         for x in self.q_net.parameters():
-#             print('grad_list before:', x.grad[0][0][0].tolist(), flush=True)
-#             break
         self.q_net.zero_grad()
-#         for x in self.q_net.parameters():
-#             print('grad_list after:', x.grad[0][0][0].tolist(), flush=True)
-#             break
         
         self.save = lambda: None
         
@@ -187,29 +177,11 @@ class GorilaDQN_ServerAgent(_GorilaDQN_BaseAgent):
     
     def optimize(self, rank, grad_shard):
         self.optimize_timer('add')
-#         self.param_vector[self.shard_mask[rank]].add_(grad_shard)
         self.param_vector[self.shard_mask[rank]] = grad_shard
         if self.optimize_timer() % self.optimize_freq != 0: return
-#         print('grad_shard norm:', grad_shard.norm(), flush=True)
-#         print('param_vector norm:', self.param_vector.norm(), flush=True)
         vector_to_parameters(self.param_vector, self.grad_list)
-#         for x in self.q_net.parameters():
-#             print('>>>>>>before backward:', x[0][0][0].tolist(), flush=True)
-#             break
-#         print('>>>>>grad norm<<<<<<<:', grad_shard.norm(), flush=True)
-#         for x in self.q_net.parameters():
-#             print('param_list norm:', parameters_to_vector(self.param_list).norm(), flush=True)
-#             break
-#         autograd.backward(self.q_net.parameters(), self.param_list)
-#         autograd.backward(self.q_net.parameters(), self.grad_list)
-#         for idx, x in enumerate(self.q_net.parameters()):
-#             x.grad = self.param_list[idx]
         self.optimize_counter('add')
         self.optimizer.step()
-#         print('params norm:', parameters_to_vector(self.q_net.parameters()).norm(), flush=True)
-#         for x in self.q_net.parameters():
-#             print('after backward<<<<<<<:', x[0][0][0].tolist(), flush=True)
-#             break
         self.zero_grad_()
         self.save()
 
@@ -240,7 +212,8 @@ class GorilaDQN_ClientAgent(_GorilaDQN_BaseAgent):
             double_dqn=double_dqn, 
             comm=comm, 
         )
-        
+        if self.rank == self.master_rank: raise RuntimeError('client agent not running on client')
+            
         self.gradient = None
         self.loss_running_mean = 0.
         self.loss_running_std = 1.
@@ -249,8 +222,6 @@ class GorilaDQN_ClientAgent(_GorilaDQN_BaseAgent):
         self.shard_mask = torch.zeros(self.param_len, dtype=torch.uint8, device=self.comm)
         dist.scatter(self.shard_mask, [], src=self.master_rank)
         self.shard_mask = self.shard_mask.to(device)
-        self.shard_len = self.shard_mask.sum().item()
-#         print('rank %s, scattered shard_mask len %s' % (self.rank, len(self.shard_mask)), flush=True)
         
     
     def reset(self):
@@ -290,8 +261,6 @@ class GorilaDQN_ClientAgent(_GorilaDQN_BaseAgent):
     
     def update_target(self):
         self.target_net.load_state_dict(self.q_net.state_dict())
-#         print('[rank %s] ______________________________ target network updated'
-#               '______________________________' % self.rank, flush=True)
         
         
     def backward(self):
@@ -317,19 +286,16 @@ class GorilaDQN_ClientAgent(_GorilaDQN_BaseAgent):
         # compute the expected Q values
         expected_q_values = (targeted_q_values * self.gamma) + rewards
         # compute loss
-        q_net_loss = self.loss(predicted_q_values, expected_q_values.unsqueeze(1))
-#         q_net_loss = self.loss(predicted_q_values, expected_q_values.unsqueeze(1), reduction='none')
-#         self._update_loss_running_mean(q_net_loss)
-#         self._update_loss_running_std(q_net_loss)
-#         q_net_loss = q_net_loss[q_net_loss <= self._loss_upper_bound()].mean()
+        q_net_loss = self.loss(predicted_q_values, expected_q_values.unsqueeze(1), reduction='none')
+        self._update_loss_running_mean(q_net_loss)
+        self._update_loss_running_std(q_net_loss)
+        q_net_loss = q_net_loss[q_net_loss <= self._loss_upper_bound()].mean()
         # optimize the model
         grad = autograd.grad(q_net_loss, self.q_net.parameters())
         delta_grad = parameters_to_vector(grad)[self.shard_mask]
         assert self.gradient is not None, 'should call zero_grad_() before backward'
         self.gradient.add_(delta_grad)
         self._record(rewards, q_net_loss, predicted_q_values, expected_q_values, self.gradient_counter)
-#         print('rank %s grad len %s' % (self.rank, len(self.gradient)), flush=True)
-#         print('grad norm:', self.gradient.norm(), flush=True)
         return self.gradient
     
     
