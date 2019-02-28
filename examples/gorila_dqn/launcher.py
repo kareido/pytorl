@@ -9,7 +9,7 @@ os.environ.setdefault('run_name', 'default')
 
 
 def main():
-    rank, world_size, master_rank, worker_list = rl_dist.slurm_param_server_arch(port=23229)
+    rank, world_size, master_rank, worker_list = rl_dist.slurm_param_server_arch(port=23228)
     worker_group = dist.new_group(ranks=worker_list)
     
     if rank == master_rank:

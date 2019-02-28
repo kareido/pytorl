@@ -84,13 +84,3 @@ def param_server_proc(master_rank, worker_list):
     
     
         
-        
-        
-        
-        
-        
-        
-        
-        
-    
-    

@@ -228,10 +228,7 @@ class PrioritizedDQN_Agent(DQN_Agent):
     
     """ should check if non_final_next is None when call this method"""    
     def _natural_dqn_q_values(self, non_final_next):
-        # must view it to match the shape
-        next_actions = self.q_net(non_final_next).max(1)[1].view(-1, 1)
-        # must squeeze it to make it a batch of scalar values
-        return self.target_net(non_final_next).gather(1, next_actions).squeeze()
+        return self.target_net(non_final_next).max(1)[0].detach()
        
     
     def optimize(self):

@@ -36,11 +36,12 @@ class _Messenger(Thread):
             else:
                 _overhead_msg = torch.tensor([overhead], dtype=torch.float32)
         msg = _overhead_msg.to(comm)
-        if _payload_msg is not None and not isinstance(_payload_msg, torch.Tensor):
-            try:
-                _payload_msg = parameters_to_vector(payload).detach()
-            except:
-                raise TypeError('unrecognized payload type, not a vector tensor nor an iterator')
+        if _payload_msg is not None:
+            if not isinstance(_payload_msg, torch.Tensor):
+                try:
+                    _payload_msg = parameters_to_vector(payload).detach()
+                except:
+                    raise TypeError('unrecognized payload type, not a vector tensor nor an iterator')
             _payload_msg = _payload_msg.to(comm)
             msg = torch.cat((msg, _payload_msg))
         return dist.isend(msg, dst, tag=tag)
@@ -50,11 +51,12 @@ class _Messenger(Thread):
         msg = torch.zeros(overhead_len, dtype=torch.float32, device=comm)
         if payload_len > 0: 
             _payload_msg = torch.zeros(payload_len, dtype=torch.float32, device=comm)
-            msg = torch.cat((_payload_msg, msg))
+            msg = torch.cat((msg, _payload_msg))
         dist.recv(msg, src, tag=tag)
         if payload_len > 0:
             _overhead_msg, _payload_msg = msg[:overhead_len], msg[overhead_len:].to(self.device)
             _overhead_msg = list(map(int, _overhead_msg))
+#             print('_payload_msg norm:', _payload_msg.norm(), flush=True)
             return _overhead_msg, _payload_msg
         
         return list(map(int, msg))

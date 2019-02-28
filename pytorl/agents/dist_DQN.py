@@ -90,7 +90,17 @@ class GorilaDQN_ServerAgent(_GorilaDQN_BaseAgent):
             comm=comm, 
         )
         
-        self.param_list = [item.clone() for item in self.q_net.parameters()]
+#         self.param_list = [item.clone() for item in self.q_net.parameters()]
+        autograd.backward(self.q_net.parameters(), self.q_net.parameters())
+        self.grad_list = [item.grad for item in self.q_net.parameters()]
+#         for x in self.q_net.parameters():
+#             print('grad_list before:', x.grad[0][0][0].tolist(), flush=True)
+#             break
+        self.q_net.zero_grad()
+#         for x in self.q_net.parameters():
+#             print('grad_list after:', x.grad[0][0][0].tolist(), flush=True)
+#             break
+        
         self.save = lambda: None
         
         # get rank to shard mapping
@@ -145,12 +155,29 @@ class GorilaDQN_ServerAgent(_GorilaDQN_BaseAgent):
     
     def optimize(self, rank, grad_shard):
         self.optimize_timer('add')
-        self.param_vector[self.shard_mask[rank]].add_(grad_shard)
+#         self.param_vector[self.shard_mask[rank]].add_(grad_shard)
+        self.param_vector[self.shard_mask[rank]] = grad_shard
         if self.optimize_timer() % self.optimize_freq != 0: return
-        vector_to_parameters(self.param_vector, self.param_list)
-        autograd.backward(self.q_net.parameters(), self.param_list)
+#         print('grad_shard norm:', grad_shard.norm(), flush=True)
+#         print('param_vector norm:', self.param_vector.norm(), flush=True)
+        vector_to_parameters(self.param_vector, self.grad_list)
+#         for x in self.q_net.parameters():
+#             print('>>>>>>before backward:', x[0][0][0].tolist(), flush=True)
+#             break
+#         print('>>>>>grad norm<<<<<<<:', grad_shard.norm(), flush=True)
+#         for x in self.q_net.parameters():
+#             print('param_list norm:', parameters_to_vector(self.param_list).norm(), flush=True)
+#             break
+#         autograd.backward(self.q_net.parameters(), self.param_list)
+#         autograd.backward(self.q_net.parameters(), self.grad_list)
+#         for idx, x in enumerate(self.q_net.parameters()):
+#             x.grad = self.param_list[idx]
         self.optimize_counter('add')
         self.optimizer.step()
+#         print('params norm:', parameters_to_vector(self.q_net.parameters()).norm(), flush=True)
+#         for x in self.q_net.parameters():
+#             print('after backward<<<<<<<:', x[0][0][0].tolist(), flush=True)
+#             break
         self.zero_grad_()
         self.save()
 
@@ -170,20 +197,23 @@ class GorilaDQN_ClientAgent(_GorilaDQN_BaseAgent):
         loss_func, 
         double_dqn=True, 
         momentum=0.1, 
+        several=6, 
         comm='cpu',
     ):
         super(GorilaDQN_ClientAgent, self).__init__(
             device, 
             q_net, 
-            target_net=target_net, 
+            target_net, 
             loss_func=loss_func, 
             double_dqn=double_dqn, 
             comm=comm, 
         )
         
+        self.gradient = None
         self.loss_running_mean = 0.
         self.loss_running_std = 1.
         self.momentum = momentum
+        self.several = several
         self.shard = self.rank if self.rank <= self.master_rank else self.rank - 1
         self.shard_mask = torch.zeros(self.shard_len, dtype=torch.long, device=self.comm)
         dist.scatter(self.shard_mask, [], src=self.master_rank)
@@ -221,6 +251,10 @@ class GorilaDQN_ClientAgent(_GorilaDQN_BaseAgent):
         return self.loss_running_std
     
     
+    def _loss_upper_bound(self):
+        return self.loss_running_mean + self.several * self.loss_running_std
+    
+    
     def update_target(self):
         self.target_net.load_state_dict(self.q_net.state_dict())
 #         print('[rank %s] ______________________________ target network updated'
@@ -237,9 +271,9 @@ class GorilaDQN_ClientAgent(_GorilaDQN_BaseAgent):
         actions = torch.tensor(batch.action).to(self.device).view(-1, 1)
         rewards = torch.tensor(batch.reward).to(self.device)
         non_final_mask = torch.tensor(tuple(map(lambda s: s is not None, batch.next_state)), 
-                                      device=self.device, dtype=torch.uint8)
+            device=self.device, dtype=torch.uint8)
         non_final_next = torch.cat(
-                            [s for s in batch.next_state if s is not None]).to(self.device)
+            [s for s in batch.next_state if s is not None]).to(self.device)
         predicted_q_values = self.q_net(curr_states).gather(1, actions)
         targeted_q_values = torch.zeros(rewards.shape[0], device=self.device)
         # compute Q values via stationary target network, this 'try' is to avoid the situation 
@@ -250,22 +284,24 @@ class GorilaDQN_ClientAgent(_GorilaDQN_BaseAgent):
         # compute the expected Q values
         expected_q_values = (targeted_q_values * self.gamma) + rewards
         # compute loss
-        q_net_loss = self.loss(predicted_q_values, expected_q_values.unsqueeze(1), reduction='none')
-        self._update_loss_running_mean(q_net_loss)
-        self._update_loss_running_std(q_net_loss)
-        q_net_loss = q_net_loss[q_net_loss <= (self.loss_running_mean + self.loss_running_std)].sum()
+        q_net_loss = self.loss(predicted_q_values, expected_q_values.unsqueeze(1))
+#         q_net_loss = self.loss(predicted_q_values, expected_q_values.unsqueeze(1), reduction='none')
+#         self._update_loss_running_mean(q_net_loss)
+#         self._update_loss_running_std(q_net_loss)
+#         q_net_loss = q_net_loss[q_net_loss <= self._loss_upper_bound()].mean()
         # optimize the model
-        self.q_net.zero_grad()
         grad = autograd.grad(q_net_loss, self.q_net.parameters())
         delta_grad = parameters_to_vector(grad)[self.shard_mask]
         assert self.gradient is not None, 'should call zero_grad_() before backward'
         self.gradient.add_(delta_grad)
         self._record(rewards, q_net_loss, predicted_q_values, expected_q_values, self.gradient_counter)
 #         print('rank %s grad len %s' % (self.rank, len(self.gradient)), flush=True)
+#         print('grad norm:', self.gradient.norm(), flush=True)
         return self.gradient
     
     
     def zero_grad_(self):
+        self.q_net.zero_grad()
         self.gradient = self.param_vector[self.shard_mask].clone()
         
         
