@@ -29,7 +29,7 @@ def param_server_proc(master_rank, worker_list):
     config = cfg_reader.get_config()
     seed, frames_stack = config.seed, config.solver.frames_stack
     save_freq, save_path = config.record.save_freq, config.record.save_path
-    num_servers = config.server.num_threads
+    num_servers, shard_factor = config.server.num_threads, config.server.shard_factor
     record_rank = config.record.record_rank
     assert record_rank != master_rank and record_rank <= world_size - 1
     
@@ -59,6 +59,7 @@ def param_server_proc(master_rank, worker_list):
         device = device,
         q_net = q_net,
         optimizer_func = optimizer_func,
+        shard_factor = shard_factor, 
      )
     
     agent.reset()

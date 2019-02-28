@@ -128,7 +128,7 @@ def param_client_proc(master_rank, worker_group):
     # CLIENT
     client = rl_dist.ParamClient()
     client.set_recv(2)
-    client.set_info(agent.shard, agent.gradient_counter)
+    client.set_info(agent.shard_len, agent.gradient_counter)
     client.set_param_update(agent.q_net)
     # q network initialization
     overhead, params = client.recv_param()

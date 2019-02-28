@@ -5,11 +5,12 @@ solver:
     # also specifies the number of network input channels
     frames_stack: 4
     double_dqn: False
-    dueling: True
+    dueling: False
 server:
     num_threads: 4
     lr: 0.0001
     optimizer: Adam
+    shard_factor: default
 client:
     gamma: 0.99
     episodes: 4000

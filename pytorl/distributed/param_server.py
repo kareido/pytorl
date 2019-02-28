@@ -75,7 +75,7 @@ class ParamServer(_Messenger):
         self.lock = lock
     
     
-    """msg format: [rank, shard, local_timesteps, signal]"""
+    """msg format: [rank, shard_len, local_timesteps, signal]"""
     def set_listen(self, recv_info_len, global_timesteps_counter):
         self.recv_info_len = recv_info_len
         self.counter = global_timesteps_counter
@@ -85,15 +85,14 @@ class ParamServer(_Messenger):
         self.model = model
         self.optim_handler = optim_handler
         self.param_vector = parameters_to_vector(model.parameters()).detach()
-        self.shard_len = (len(self.param_vector) + self.world_size - 2) // (self.world_size - 1)
     
     
     def _recv_info(self):
         return self.recv(self.recv_info_len, tag=SIG.QUERY)
     
     
-    def _recv_shard(self, src):
-        return self.recv(self.recv_info_len, self.shard_len, src=src, tag=SIG.GRAD)
+    def _recv_shard(self, src, shard_len):
+        return self.recv(self.recv_info_len, shard_len, src=src, tag=SIG.GRAD)
     
     
     def _isend_param(self, dst):
@@ -102,11 +101,9 @@ class ParamServer(_Messenger):
     
     
     def listen(self):
-        sender, shard, local_time, signal = self._recv_info()
+        sender, shard_len, local_time, signal = self._recv_info()
         if signal == SIG.GRAD_PUSH: 
-            _, grad_shard = self._recv_shard(sender)
-#             print('server thread %s _ len %s grad_shart len %s' % (self.thread, len(_), len(grad_shard)), flush=True)
-#             print('master server updating q network using grad from rank [%s]' % sender, flush=True)
+            _, grad_shard = self._recv_shard(sender, shard_len)
             with self.lock: self.optim_handler(sender, grad_shard)
             return
         self._isend_param(sender).wait()

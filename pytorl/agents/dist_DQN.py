@@ -45,7 +45,7 @@ class _GorilaDQN_BaseAgent(PrioritizedDQN_Agent):
         self._gradient_timer = 0
         self.param_vector = parameters_to_vector(self.q_net.parameters()).zero_().detach()
         self.param_len = len(self.param_vector)
-        self.shard_len = (self.param_len + self.num_clients - 1) // self.num_clients
+#         self.shard_len = (self.param_len + self.num_clients - 1) // self.num_clients
 #         print('param len %s shard len %s' % (self.param_len, self.shard_len), flush=True)
 
         
@@ -76,12 +76,24 @@ class _GorilaDQN_BaseAgent(PrioritizedDQN_Agent):
         
         
 class GorilaDQN_ServerAgent(_GorilaDQN_BaseAgent):
+    """
+    Args:
+        comm: device used for communication
+        shard_factor:
+            default: the whole q network is devided into num_clients parts and each client is 
+                responsible for the gradient of its own part
+            a float number e.g. 0.75: specifies the percentage of each part w.r.t. to the full 
+                gradient size, if it is smaller than default, using default size, if 
+                
+            all: each client gives whole gradient
+    """
     def __init__(
         self, 
         device, 
         q_net, 
         optimizer_func=None, 
         comm='cpu',
+        shard_factor='default'
         ):
         super(GorilaDQN_ServerAgent, self).__init__(
             device, 
@@ -91,6 +103,8 @@ class GorilaDQN_ServerAgent(_GorilaDQN_BaseAgent):
         )
         
 #         self.param_list = [item.clone() for item in self.q_net.parameters()]
+        if self.rank != self.master_rank: raise RuntimeError('server agent not running on server')
+        # initialize gradient list (ortherwise, grads are all None)
         autograd.backward(self.q_net.parameters(), self.q_net.parameters())
         self.grad_list = [item.grad for item in self.q_net.parameters()]
 #         for x in self.q_net.parameters():
@@ -104,32 +118,50 @@ class GorilaDQN_ServerAgent(_GorilaDQN_BaseAgent):
         self.save = lambda: None
         
         # get rank to shard mapping
+        non_master_rank = list(range(self.rank)) + list(range(self.rank, self.world_size))
+        
         self.rank_to_shard = [None] * self.world_size
-        for idx in range(self.world_size):
-            if idx < self.master_rank: 
-                self.rank_to_shard[idx] = idx
+        for rank in non_master_rank:
+            if rank < self.master_rank: 
+                self.rank_to_shard[rank] = rank
             else: 
-                self.rank_to_shard[idx] = idx - 1
-        self.rank_to_shard[self.master_rank] = -1
+                self.rank_to_shard[rank] = rank - 1
+        self.rank_to_shard[self.rank] = -1
         
         # setup random shards
         self.param_perm = torch.randperm(self.param_len).to(self.comm)    
         self.shard_mask = [None] * self.world_size
-        self.master_shard = torch.zeros(self.shard_len, dtype=torch.long, device=self.comm)
-        for rank in range(self.world_size):
-            if rank == self.master_rank: 
-                self.shard_mask[rank] = self.master_shard
-                continue
-            self.shard_mask[rank] = \
-                self.param_perm[(self.param_perm % self.num_clients) == self.rank_to_shard[rank]]
-            if len(self.shard_mask[rank]) < self.shard_len:
-                self.shard_mask[rank] = torch.cat(
-                    (self.shard_mask[rank], torch.randint(self.param_len, (1,)).to(self.comm)))
-            assert len(self.shard_mask[rank]) == self.shard_len, 'length error'
-#             print('assert %s %s' % (len(self.shard_mask[rank]),  self.shard_len), flush=True)
+        self.shard_len = [None] * self.world_size
+        self.master_shard = torch.ones(self.param_len, dtype=torch.uint8, device=self.comm)
+        self.shard_mask[self.rank] = self.master_shard
+        self.shard_len[self.rank] = self.param_len
+        # preprocess shard_factor
+        _excess_nums = 0
+        if isinstance(shard_factor, (int, float)):
+            _default_factor = self.num_clients / self.param_len
+            if shard_factor >= 1: shard_factor = 'all'
+            elif shard_factor <= _default_factor: shard_factor = 'default'
+            else: 
+                _excess_nums = int((shard_factor - _default_factor + .5) * self.param_len)
+                shard_factor = 'specified'
+                
+        for rank in non_master_rank:
+            if shard_factor == 'all':
+                self.shard_mask[rank] = torch.ones(self.shard_len, dtype=torch.uint8, device=self.comm)
+                self.shard_len[rank] = self.param_len
+            else:
+                assert shard_factor in {'default', 'specified'}
+                self.shard_mask[rank] = self.param_perm % self.num_clients == self.rank_to_shard[rank]
+                if _excess_nums >= 1: 
+                    curr_mask, curr_len = self.shard_mask[rank], len(self.shard_mask[rank])
+                    curr_mask[torch.randperm(curr_len)[1 - curr_mask][:_excess_nums]] = 1
+                self.shard_len[rank] = self.shard_mask[rank].sum().item()
                 
         # send to clients
         dist.scatter(self.master_shard, scatter_list=self.shard_mask, src=self.master_rank)
+        
+        for rank in non_master_rank:
+            self.shard_mask[rank] = self.shard_mask[rank].to(device)
     
     
     def set_optimize_scheme(self, lr=.0001, optimize_freq=1):
@@ -214,9 +246,10 @@ class GorilaDQN_ClientAgent(_GorilaDQN_BaseAgent):
         self.loss_running_std = 1.
         self.momentum = momentum
         self.several = several
-        self.shard = self.rank if self.rank <= self.master_rank else self.rank - 1
-        self.shard_mask = torch.zeros(self.shard_len, dtype=torch.long, device=self.comm)
+        self.shard_mask = torch.zeros(self.param_len, dtype=torch.uint8, device=self.comm)
         dist.scatter(self.shard_mask, [], src=self.master_rank)
+        self.shard_mask = self.shard_mask.to(device)
+        self.shard_len = self.shard_mask.sum().item()
 #         print('rank %s, scattered shard_mask len %s' % (self.rank, len(self.shard_mask)), flush=True)
         
     
