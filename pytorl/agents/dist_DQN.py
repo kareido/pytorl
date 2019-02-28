@@ -137,7 +137,7 @@ class GorilaDQN_ServerAgent(_GorilaDQN_BaseAgent):
                 
         for rank in non_master_rank:
             if shard_factor == 'all':
-                self.shard_mask[rank] = torch.ones(self.shard_len, dtype=torch.uint8, device=self.comm)
+                self.shard_mask[rank] = torch.ones(self.param_len, dtype=torch.uint8, device=self.comm)
                 self.shard_len[rank] = self.param_len
             else:
                 assert shard_factor in {'default', 'specified'}
