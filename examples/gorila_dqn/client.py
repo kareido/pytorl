@@ -16,14 +16,10 @@ import pytorl.utils as utils
 
 def param_client_proc(master_rank, worker_group):
     ################################################################
-    # DEVICE
+    # CONFIG
     rank, world_size = dist.get_rank(), dist.get_world_size()
     master_rank = rl_dist.get_master_rank()
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print('rank: [%s], current device: [%s]' % (rank, device), flush=True)
     
-    ################################################################
-    # CONFIG
     cfg_reader = utils.ConfigReader(default='run_project/config.yaml')
     config = cfg_reader.get_config()
     seed, num_episodes = config.seed, config.client.episodes
@@ -31,7 +27,21 @@ def param_client_proc(master_rank, worker_group):
     gradients_push_freq = config.client.gradients_push_freq
     delay_factor = config.client.delay_factor
     record_rank = config.record.record_rank
+    specified_device = config.client.device
     assert record_rank != master_rank and record_rank <= world_size - 1
+    
+    ################################################################
+    # DEVICE
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    if '%s' % device == specified_device: 
+        msg = 'using specified'
+    elif specified_device == 'cuda': 
+        msg = 'cuda not fuound, current'
+    else: 
+        msg = 'found cuda, but using specified'
+        device = torch.device(specified_device)
+        
+    print('[rank %s] %s device: [%s]' % (rank, msg, device), flush=True)
     
     ################################################################
     # RECORDER
@@ -126,7 +136,7 @@ def param_client_proc(master_rank, worker_group):
     
     ################################################################
     # CLIENT
-    client = rl_dist.ParamClient()
+    client = rl_dist.ParamClient(device)
     client.set_recv(2)
     client.set_info(agent.shard_len, agent.gradient_counter)
     client.set_param_update(agent.q_net)

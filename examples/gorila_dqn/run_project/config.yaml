@@ -8,9 +8,10 @@ solver:
     dueling: True
 server:
     num_threads: 8
-    lr: 0.001
-    optimizer: Adagrad
-    shard_factor: 0.67
+    lr: 0.0001
+    optimizer: Adam
+    shard_factor: all
+    device: cuda
 client:
     gamma: 0.99
     episodes: 4000
@@ -19,17 +20,18 @@ client:
     # note: gradient push freq w.r.t local timesteps
     gradients_push_freq: 1
     # note: update_target_freq w.r.t global timesteps
-    update_target_freq: 100
-    delay_factor: 0.25
+    update_target_freq: 200
+    delay_factor: 0.1
     loss: smooth_l1_loss
+    device: cuda
 greedy:
     start: 1
     end: 0.02
     frames: 100000
 replay:
     # note: capacity w.r.t states
-    capacity: 500000
-    init_size: default
+    capacity: 1000000
+    init_size: 10000
     batch_size: 32
     alpha: 0.6
     beta:

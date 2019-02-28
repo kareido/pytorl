@@ -20,12 +20,12 @@ class SIG:
 
     
 class _Messenger(Thread):
-    def __init__(self):
+    def __init__(self, device):
         super(_Messenger, self).__init__()
         rank, world_size = dist.get_rank(), dist.get_world_size()
         self.rank = rank
         self.world_size = world_size
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.device = device
 
     
     def isend(self, overhead, payload=None, dst=0, tag=0, comm='cpu'):
@@ -67,8 +67,8 @@ class _Messenger(Thread):
     
 
 class ParamServer(_Messenger):
-    def __init__(self, thread, lock):
-        super(ParamServer, self).__init__()
+    def __init__(self, device, thread, lock):
+        super(ParamServer, self).__init__(device)
         self.master_rank = get_master_rank()
         self.thread = thread
         self.lock = lock
@@ -115,8 +115,8 @@ class ParamServer(_Messenger):
     
     
 class ParamClient(_Messenger):
-    def __init__(self):
-        super(ParamClient, self).__init__()
+    def __init__(self, device):
+        super(ParamClient, self).__init__(device)
         self.master_rank = get_master_rank()
         self.overhead = None
     
