@@ -4,24 +4,26 @@ import torch.distributed as dist
 from ._slurm import *
 
 
-def _get_slurm_addr():
-    node_list = get_nodelist()
-    num_gpus = torch.cuda.device_count()
-    rank, world_size = get_rank(), get_world_size()
-    if num_gpus > 0: 
-        gpu_id = rank % num_gpus
-        torch.cuda.set_device(gpu_id)
+"""
+Since this part is very environment-sensitive, you may wanna modify this module by yourself to fit your
+specific distributed setup
+"""
 
+
+def _get_slurm_addr():
+    """
+    this is related to my current slurm env, you can ignore it
+    """
+    node_list = get_nodelist()
     if '[' in node_list:
         beg = node_list.find('[')
         pos1 = node_list.find('-', beg)
-        if pos1 < 0:
-            pos1 = 1000
+        if pos1 < 0: pos1 = 1000
         pos2 = node_list.find(',', beg)
-        if pos2 < 0:
-            pos2 = 1000
+        if pos2 < 0: pos2 = 1000
         node_list = node_list[:min(pos1, pos2)].replace('[', '')
     addr = node_list[8:].replace('-', '.')
+    
     return addr
 
 

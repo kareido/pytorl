@@ -4,6 +4,7 @@ from threading import Thread
 import torch
 import torch.distributed as dist
 from torch.nn.utils import parameters_to_vector, vector_to_parameters
+from pytorl.utils import Setting
 
 
 def get_master_rank():
@@ -74,12 +75,14 @@ class ParamServer(_Messenger):
         self.lock = lock
     
     
-    """msg format: [rank, shard_len, local_timesteps, signal]"""
+    @Setting.only_once
     def set_listen(self, recv_info_len, global_timesteps_counter):
+        """msg format: [rank, shard_len, local_timesteps, signal]"""
         self.recv_info_len = recv_info_len
         self.counter = global_timesteps_counter
     
     
+    @Setting.only_once
     def set_param_update(self, model, optim_handler):
         self.model = model
         self.optim_handler = optim_handler
@@ -120,16 +123,20 @@ class ParamClient(_Messenger):
         self.master_rank = get_master_rank()
         self.overhead = None
     
-    """msg format: [global_timesteps, server_thread_num]"""
+    
+    @Setting.only_once
     def set_recv(self, recv_info_len):
+        """msg format: [global_timesteps, server_thread_num]"""
         self.recv_info_len = recv_info_len
     
     
+    @Setting.only_once
     def set_info(self, shard_idx, local_timesteps_counter):
         self.shard_idx = shard_idx
         self.counter = local_timesteps_counter
     
     
+    @Setting.only_once
     def set_param_update(self, model):
         self.model = model
         self.param_vector = parameters_to_vector(model.parameters()).detach()
@@ -153,4 +160,6 @@ class ParamClient(_Messenger):
     
     def run(self):
         raise RuntimeError('cannot run parameter client')
+    
+
     

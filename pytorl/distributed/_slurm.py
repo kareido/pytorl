@@ -19,3 +19,5 @@ def get_backend():
 
 def get_nodelist():
     return os.environ['SLURM_NODELIST']
+
+

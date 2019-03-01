@@ -4,9 +4,10 @@ import numpy as np
 import torch
 import torch.autograd as autograd
 import torch.distributed as dist
-from pytorl.distributed import get_master_rank
 import torch.nn as nn
 from torch.nn.utils import parameters_to_vector, vector_to_parameters
+from pytorl.distributed import get_master_rank
+from pytorl.utils import Setting
 from .DQN import PrioritizedDQN_Agent
 
 
@@ -154,6 +155,7 @@ class GorilaDQN_ServerAgent(_GorilaDQN_BaseAgent):
             self.shard_mask[rank] = self.shard_mask[rank].to(device)
     
     
+    @Setting
     def set_optimize_scheme(self, lr=.0001, optimize_freq=1):
         self.lr = lr
         assert optimize_freq >= 1
@@ -164,7 +166,8 @@ class GorilaDQN_ServerAgent(_GorilaDQN_BaseAgent):
         )
         self.zero_grad_()
         
-    
+        
+    @Setting
     def set_checkpoint(self, save_freq, save_path):
         self.save_freq = save_freq
         self.save_path = save_path
@@ -230,7 +233,8 @@ class GorilaDQN_ClientAgent(_GorilaDQN_BaseAgent):
         self.loss_running_mean = 0.
         self.loss_running_std = 1.
     
-        
+    
+    @Setting
     def set_gradient_scheme(
             self,
             gamma=.99, 

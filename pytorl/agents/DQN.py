@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 from torch.nn.utils import clip_grad_value_
 from pytorl.lib import PrioritizedReplay
+from pytorl.utils import Setting
 from ._base_agent import Agent
 
 
@@ -33,7 +34,8 @@ class DQN_Agent(Agent):
         self.get_sample = None
         self.get_thres = lambda: 0
         
-    
+        
+    @Setting
     def set_exploration(self,
                         get_sample=None, 
                         get_thres=lambda: 0,  
@@ -42,6 +44,7 @@ class DQN_Agent(Agent):
         self.get_thres = get_thres
     
     
+    @Setting
     def set_optimize_scheme(self,
             lr=.0001, gamma=.99, 
             optimize_freq=1, 
@@ -79,7 +82,7 @@ class DQN_Agent(Agent):
     def update_target(self):
         self.target_net.load_state_dict(self.q_net.state_dict())
         
-    
+        
     def set_device(self):
         self.q_net = self.q_net.to(self.device)
         if self.target_net: self.target_net = self.target_net.to(self.device)
@@ -206,6 +209,7 @@ class PrioritizedDQN_Agent(DQN_Agent):
             self._non_final_targeted_q_values = self._natural_dqn_q_values
         
     
+    @Setting
     def set_prioritized_replay(self, capacity=None, batch_size=32, 
                                init_size=None, alpha=1, beta_func=lambda: 1, eps=1e-6):
         self.replay = PrioritizedReplay(

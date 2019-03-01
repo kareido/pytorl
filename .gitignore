@@ -17,3 +17,6 @@ log.txt
 
 # tensorboard files
 events.out.tfevents.*
+
+# setting file(s):
+pytorl.yaml

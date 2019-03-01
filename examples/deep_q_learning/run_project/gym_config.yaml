@@ -1,7 +1,7 @@
 seed: 123
 solver:
     env: CartPole-v1
-    agent: DoubleDQN_Agent
+    double_dqn: False
     lr: 0.00025
     gamma: 0.999
     episodes: 1000000

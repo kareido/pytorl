@@ -4,6 +4,7 @@ import time
 import numpy as np
 import torch
 import torchvision.transforms as T
+from pytorl.agents import DoubleDQN_Agent, DQN_Agent
 from pytorl.envs import make_atari_env
 from pytorl.networks import Q_Network
 import pytorl.utils as utils
@@ -23,6 +24,7 @@ def main():
     cfg_reader = utils.ConfigReader(default='run_project/atari_config.yaml')
     config = cfg_reader.get_config()
     seed, num_episodes = config.seed, config.solver.episodes
+    double_dqn = config.solver.double_dqn
 
     ################################################################
     # RECORDER
@@ -77,7 +79,7 @@ def main():
 
     loss_func = cfg_reader.get_loss_func(config.solver.loss)
     optimizer_func = cfg_reader.get_optimizer_func(config.solver.optimizer)
-    dqn_agent_func = cfg_reader.get_agent_func(config.solver.agent)
+    dqn_agent_func = DoubleDQN_Agent if double_dqn else DQN_Agent
     
     agent = dqn_agent_func(
         device=device,

@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from pytorl.networks import io
+from pytorl.utils import Setting
 
 
 """
@@ -38,7 +39,7 @@ class Agent:
             self._optimize_timer = num           
         return self._optimize_timer 
         
-        
+    @Setting.only_once
     def set_tensorboard(self, obj=None):
         """
         [!]WARNING: should check the legitimacy of num by yourself

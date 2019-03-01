@@ -20,7 +20,7 @@ client:
     # note: gradient push freq w.r.t local timesteps
     gradients_push_freq: 1
     # note: update_target_freq w.r.t global timesteps
-    update_target_freq: 200
+    update_target_freq: 50
     delay_factor: 0.1
     loss: smooth_l1_loss
     device: cuda

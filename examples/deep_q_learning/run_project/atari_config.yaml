@@ -1,7 +1,7 @@
 seed: 123
 solver:
     env: PongNoFrameskip-v4
-    agent: DoubleDQN_Agent
+    double_dqn: True
     lr: 0.0001
     gamma: 0.99
     episodes: 4000
