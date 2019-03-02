@@ -46,6 +46,13 @@ $ sh TEST.sh -N <run name>
 &nbsp;  
 
 **Result Demo:**  
+1. Natural DQN  
 ![pong-v4_origsingle](../../.demo/pong-v4_origsingle.png)  
 *(reward/episode while training ale atari PongNoFrameskip-v4 via Natrual DQN)*  
+
+2. Double DQN  
+![pong-v4_double](../../.demo/pong-v4_double.png)  
+*(reward/episode while training ale atari PongNoFrameskip-v4 via Double DQN)*  
+
+
 
