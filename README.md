@@ -63,6 +63,6 @@ sh <script filename> <options>
 
 **Demo of Some RL Results:**  
 
-![pong-v4_various_smooth](./screenshots/pong-v4_various_smooth.png)  
+![pong-v4_various_smooth](./.demo/pong-v4_various_smooth.png)  
 *(reward/episode while training ale atari PongNoFrameskip-v4 via diff. DQN algorithms)*  
 
