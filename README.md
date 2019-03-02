@@ -68,7 +68,7 @@ sh <script filename> <options>
 
 &nbsp;  
 
-**Acknoledgements:**  
+**Acknowledgements:**  
 1. During the development, I referred to some other helpful resources:  
     - @qfettes/DeepRL-Tutorials repo for nice tutorials and designs
     - @openai/baselines for some implementations
