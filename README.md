@@ -66,3 +66,14 @@ sh <script filename> <options>
 ![pong-v4_various_smooth](./.demo/pong-v4_various_smooth.png)  
 *(reward/episode while training ale atari PongNoFrameskip-v4 via diff. DQN algorithms)*  
 
+&nbsp;  
+
+**Acknoledgements:**  
+1. During the development, I referred to some other helpful resources:  
+    - @qfettes/DeepRL-Tutorials repo for nice tutorials and designs
+    - @openai/baselines for some implementations
+    - my mentor and colleague Huabin Zheng (https://dblp.org/pers/hd/z/Zheng:Huabin)  
+      for technical consultation and extraordinary design ideas
+    - other helpful sources and geniuses from websites such as stackoverflow, GeeksforGeeks, etc.
+
+<pre>    Thanks them all for making our open source world a better place! :) </pre>
