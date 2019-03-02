@@ -24,19 +24,28 @@ This is the improved version of deep q-learning trying to tackle the problem of 
 
 &nbsp;  
 
-**run example:**
+**Run Example:**
 
 ```bash
 $ cd run_project/
-$ sh <script name> <partition>
+$ sh [-h] <script filename> <options>
+# for example, you can try sh ATARI.sh -N testrun --local
+# you can always use sh <script filename> [-h] for options help
 ```
 
 &nbsp;  
 
-**visualize atari learning result:**
+**Test Atari Learning Result:**
 
 ```bash
-# on your own computer(must have a screen to render)
 $ cd run_project/
-$ sh TEST.sh
+$ sh TEST.sh -N <run name>
+# for example, you can try sh TEST.sh -N test_agent
 ```
+
+&nbsp;  
+
+**Result Demo:**  
+![pong-v4_origsingle](../../.demo/pong-v4_origsingle.png)  
+*(reward/episode while training ale atari PongNoFrameskip-v4 via Natrual DQN)*  
+
