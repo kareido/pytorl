@@ -54,9 +54,9 @@ $ python dev_setup.py -dir <path>
 ```bash
 # run_project folder contains scripts for job starting
 $ cd examples/<project main folder>/run_project
-$ sh <script filename> <options>
-# for example, you can try
-# sh ATARI.sh -N testrun --local
+$ sh <script filename> [-h] <options>
+# for example, you can try sh ATARI.sh -N testrun --local
+# you can always use sh <script filename> [-h] for options help
 ```
 
 &nbsp;  
