@@ -38,14 +38,14 @@ without slurm :).
 
 **Simple Setup from Scratch:**
 ```bash
-# 1. clone the repo
-git clone http://gitlab.sz.sensetime.com/huangzhe/TORCH_RL.git
+# 1. clone this repo to local
+$ git clone <this repo address>.git
 # 2. run simple setup script
 # the <path> here is where you want to put your experiments latter on
 # your experiments launched by this toolbox provided "rl-run" entry will be 
 # automatically moved to the <path> and start executing at there rather than
 # running directly at the dir currently you are working on, good for developing
-python dev_setup.py -dir <path>
+$ python dev_setup.py -dir <path>
 ```
 
 &nbsp;  
@@ -53,8 +53,8 @@ python dev_setup.py -dir <path>
 **Run Example Projects after Setup:**
 ```bash
 # run_project folder contains scripts for job starting
-cd examples/<project main folder>/run_project
-sh <script filename> <options>
+$ cd examples/<project main folder>/run_project
+$ sh <script filename> <options>
 # for example, you can try
 # sh ATARI.sh -N testrun --local
 ```
