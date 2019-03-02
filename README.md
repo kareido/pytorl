@@ -69,7 +69,7 @@ sh <script filename> <options>
 &nbsp;  
 
 **Acknowledgements:**  
-1. During the development, I referred to some other helpful resources:  
+1. During the development, I referred to some helpful resources, listed as follows:  
     - @qfettes/DeepRL-Tutorials repo for nice tutorials and designs
     - @openai/baselines for some implementations
     - my mentor and colleague Huabin Zheng (https://dblp.org/pers/hd/z/Zheng:Huabin)  
