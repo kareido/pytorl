@@ -30,7 +30,7 @@ without slurm :).
 > gym == 0.10.11 with atari  
 > numpy == 1.14.3  
 > python == 3.6.5  
-> pytorch == 1.0.1 
+> pytorch == 1.0.1  
 > tensorboard = 1.9.0  
 > tensorboardX == 1.4  
 
