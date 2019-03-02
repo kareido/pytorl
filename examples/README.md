@@ -29,5 +29,5 @@ package, showing how this toolbox can be used to tackle different problems. </pr
 **Note:**
 <pre> You may be noticed that there could be much code redundancy in those examples, 
 which seems to be inefficient and unnecessary. In reality, it is designed to be 
-that since I believe redundancy sometimes is better than over modulized impleme-
-tation.</pre>
+that since I believe sometimes redundancy is much better than over modulized 
+implemetations.</pre>
