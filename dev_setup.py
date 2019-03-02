@@ -29,13 +29,14 @@ from {0} import {1}
 
 if __name__ == '__main__':
     sys.argv[0] = re.sub(r'(-script\.pyw?|\.exe)?$', '', sys.argv[0])
-    sys.exit({1}())'''
+    sys.exit({1}())
+'''
 
 
 def setup():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--experiment-dir', '-dir', required = True, 
-                       help='specify the directory for %s experiments' % MODULE_NAME)
+    parser.add_argument('--experiment-dir', '-dir', required=True, 
+        help='specify the directory for %s experiments' % MODULE_NAME)
     opt = parser.parse_args()
     
     ################################################################################
@@ -47,7 +48,7 @@ def setup():
     while True:
         print('[Step 1] please confirm that from now on '
               'you want to save your experiments in:\n'
-              '[Step 1] >>>>>>>>>>>>> [%s] <<<<<<<<<<<<< [Y/n]:' % exp_dir, flush=True, end='')
+              '[Step 1] >>>>>>>>>>>>> [%s] <<<<<<<<<<<<< [Y/n]:' % exp_dir, end='', flush=True)
         response = input().strip()
         if response in {'Y', 'y'}: break
         elif response in {'N', 'n'}: sys.exit()
@@ -93,7 +94,7 @@ def setup():
 
     ################################################################################
     # 3. setup command line entry points
-    print('[Step 3] setup command line entry points .............', flush=True)
+    print('[Step 3] setup command line entry points ..........', flush=True)
     interpreter = sys.executable
     shebang = '#!' + interpreter
     bin_path = os.path.dirname(interpreter)
@@ -109,6 +110,7 @@ def setup():
         os.chmod(bin_file, 0o775)
 
     print('[Step 3] >>>>>>>>>>>>> [OK] >>>>>>>>>>>>>', flush=True)
+    print('[Setup ] <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<', flush=True)
     print('[Setup ] <<<<<<<<<< [ALL DONE] <<<<<<<<<<', flush=True)
 
 

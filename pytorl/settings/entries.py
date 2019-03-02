@@ -3,6 +3,7 @@ import os
 import shutil
 import socket
 import subprocess
+import pytorl
 from pytorl.utils import ConfigReader
 
 MODULE_NAME = 'pytorl'
@@ -35,20 +36,21 @@ def _get_host_ip():
 
 def rl_run():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--run_name', '-rn', default = 'default')
-    parser.add_argument('--command', '-c', required = True)
+    parser.add_argument('--run-name', '-rn', default='default')
+    parser.add_argument('--command', '-c', required=True)
     opt = parser.parse_args()
 
-    setting_file = os.path.join(os.path.dirname(), '%s.yaml' % MODULE_NAME)
-    cfg_reader = ConfigReader(default=setting_file)
+    setting_file = os.path.join(os.path.dirname(pytorl.__file__), 'settings/%s.yaml' % MODULE_NAME)
+    cfg_reader = ConfigReader(filename=setting_file)
     config = cfg_reader.get_config()
     exp_dir = config.experiment_dir
     
-    src_dir = os.path.split(os.getcwd())[-1]
+    src_path = os.getcwd()
+    src_dir = os.path.split(src_path)[-1]
     if not os.path.isdir(exp_dir): 
         raise NotADirectoryError('experiment_dir [%s] does not exist' % exp_dir)
 
-    exp_entry = os.join.path(exp_dir, opt.run_name)
+    exp_entry = os.path.join(exp_dir, opt.run_name)
     
     if os.path.isdir(exp_entry):
         while True:
@@ -61,10 +63,9 @@ def rl_run():
         # warning: this overwrites previous experiment        
         shutil.rmtree(exp_entry)
 
-    exp_entry.mkdir(parents = True, exist_ok = True)
-    runway_file = runway_dir / '.pg-runway'
+    os.makedirs(exp_entry, exist_ok=True)
     trg_dir = os.path.join(exp_entry, src_dir)
-    shutil.copytree(str(src_dir), str(trg_dir))
+    shutil.copytree(src_path, trg_dir)
     
     _cd_and_execute(trg_dir, opt.command, opt.run_name)
     
@@ -92,3 +93,6 @@ def lrun():
         except KeyboardInterrupt:
             print('\tPlease double press Ctrl-C within 1 second to kill srun job. '
                   'It will take several seconds to shutdown ...', flush=True)
+
+            
+            
