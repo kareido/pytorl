@@ -4,7 +4,7 @@
 
 &nbsp;  
 
-**Simple Description:**
+**Description:**
 <pre> These folders contains RL training scripts implemented using pytorl 
 package, showing how this toolbox can be used to tackle different problems. </pre>
 
@@ -26,7 +26,7 @@ package, showing how this toolbox can be used to tackle different problems. </pr
 
 &nbsp;  
 
-**Note**
+**Note:**
 <pre> You may be noticed that there could be much code redundancy in those examples, 
 which seems to be inefficient and unnecessary. In reality, it is designed to be 
 that since I believe redundancy sometimes is better than over modulized impleme-
