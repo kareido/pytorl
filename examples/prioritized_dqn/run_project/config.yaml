@@ -32,7 +32,7 @@ replay:
         frames: 100000
 record:
     save_freq: 100
-    save_path: ./checkpoint
+    save_path: ../checkpoint
     load_path: /Users/zhe/Desktop
     render: False
     

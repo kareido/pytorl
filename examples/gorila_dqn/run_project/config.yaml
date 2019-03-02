@@ -41,7 +41,7 @@ replay:
 record:
     record_rank: 1
     save_freq: 10000
-    save_path: ./checkpoint
-    load_path: /Users/zhe/Desktop
+    save_path: ../checkpoint
+    load_path: ../checkpoint
     render: False
     

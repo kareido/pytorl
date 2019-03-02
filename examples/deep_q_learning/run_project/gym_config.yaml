@@ -26,8 +26,8 @@ replay:
     batch_size: 128
 record:
     save_freq: 10000
-    save_path: ./checkpoint
-    load_path: ./checkpoint
+    save_path: ../checkpoint
+    load_path: ../checkpoint
     render: False
     
 
