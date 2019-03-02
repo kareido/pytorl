@@ -61,9 +61,8 @@ sh <script filename> <options>
 
 &nbsp;  
 
-**Demo of Some RL Results**  
+**Demo of Some RL Results:**  
 
-![pong-v4_various_smooth](http://gitlab.sz.sensetime.com/huangzhe/TORCH_RL/blob/master/screenshots/pong-v4_various_smooth.png)
-
-
+![pong-v4_various_smooth](./screenshots/pong-v4_various_smooth.png)  
+*(reward/episode while training ale atari PongNoFrameskip-v4 via diff. DQN algorithms)*  
 
