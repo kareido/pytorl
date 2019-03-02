@@ -20,3 +20,6 @@ events.out.tfevents.*
 
 # setting file(s):
 pytorl.yaml
+
+# others:
+.DS_Store
