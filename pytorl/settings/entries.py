@@ -21,8 +21,8 @@ def _cd_and_execute(trg_dir, command, run_name):
         except KeyboardInterrupt:
             print('\tPlease double press Ctrl-C within 1 second to kill srun job. '
                   'It will take several seconds to shutdown ...', flush = True)
-        
-        
+
+
 def _get_host_ip():
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -44,33 +44,33 @@ def rl_run():
     cfg_reader = ConfigReader(filename=setting_file)
     config = cfg_reader.get_config()
     exp_dir = config.experiment_dir
-    
+
     src_path = os.getcwd()
     src_dir = os.path.split(src_path)[-1]
-    if not os.path.isdir(exp_dir): 
+    if not os.path.isdir(exp_dir):
         raise NotADirectoryError('experiment_dir [%s] does not exist' % exp_dir)
 
     exp_entry = os.path.join(exp_dir, opt.run_name)
-    
+
     if os.path.isdir(exp_entry):
         while True:
-            print('experiment [%s] already exists at [%s]:' % (opt.run_name, exp_dir), 
+            print('experiment [%s] already exists at [%s]:' % (opt.run_name, exp_dir),
                   '\n>>>>>>>>>>>> overwrite it or not ? <<<<<<<<<<<< [Y/n]:', flush=True, end='')
             response = input().strip()
             if response in {'Y', 'y'}: break
             elif response in {'N', 'n'}: sys.exit()
             else: continue
-        # warning: this overwrites previous experiment        
+        # warning: this overwrites previous experiment
         shutil.rmtree(exp_entry)
 
     os.makedirs(exp_entry, exist_ok=True)
     trg_dir = os.path.join(exp_entry, src_dir)
     shutil.copytree(src_path, trg_dir)
-    
+
     _cd_and_execute(trg_dir, opt.command, opt.run_name)
-    
-    
-def lrun(): 
+
+
+def lrun():
     parser = argparse.ArgumentParser()
     parser.add_argument('--ntasks', '-n', type=int, required=True)
     parser.add_argument('cmd', nargs=argparse.REMAINDER)
@@ -94,5 +94,5 @@ def lrun():
             print('\tPlease double press Ctrl-C within 1 second to kill srun job. '
                   'It will take several seconds to shutdown ...', flush=True)
 
-            
-            
+
+
