@@ -17,7 +17,7 @@ ENTRY_MODULE = '%s.settings.entries' % MODULE_NAME
 
 ENTRY_POINTS = {
     'rlrun': 'rl_run',
-    'lrun': 'lrun',
+    # 'lrun': 'lrun',
 }
 
 TEMPLATE = '''{2}
